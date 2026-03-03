@@ -12,222 +12,269 @@ export interface GiftCardData {
 
 interface GiftCardProps {
   data: GiftCardData;
-  /** Cuando scale=true, la tarjeta usa su tamaño nativo (para la captura del PDF). */
   nativeSize?: boolean;
 }
 
-// Datos fijos del negocio
 const PHONE = "342 5162086";
 const ADDRESS = "Rivadavia 2700";
 const TERMS =
   "El cupón es válido ÚNICAMENTE para ser canjeado en el local de Carestino de la Ciudad de Santa Fe ubicado en Rivadavia 2700.";
 
+const COLOR = "#ea7014";
+const BG = "#FAF7F2";
+const FONT = "var(--font-montserrat), Montserrat, Arial, sans-serif";
+
 const GiftCard = forwardRef<HTMLDivElement, GiftCardProps>(
   ({ data, nativeSize = false }, ref) => {
     const { recipientName, amount, isProduct, date, securityCode } = data;
 
-    const cardClass = nativeSize
-      ? "w-[420px] min-h-[600px]"
-      : "w-full max-w-[380px]";
+    // All sizes defined in "native" units (480px card), scaled for preview
+    const s = nativeSize ? 1 : 0.79;
+    const w = nativeSize ? 480 : 380;
+    const px = nativeSize ? 48 : 32;
+    const py = nativeSize ? 40 : 28;
 
     return (
       <div
         ref={ref}
-        className={`${cardClass} bg-[#FAF7F2] flex flex-col px-8 py-7 select-none`}
-        style={{ fontFamily: "var(--font-montserrat), Montserrat, sans-serif" }}
+        style={{
+          width: `${w}px`,
+          backgroundColor: BG,
+          fontFamily: FONT,
+          display: "flex",
+          flexDirection: "column",
+          paddingLeft: `${px}px`,
+          paddingRight: `${px}px`,
+          paddingTop: `${py}px`,
+          paddingBottom: `${py}px`,
+          userSelect: "none",
+          boxSizing: "border-box",
+        }}
       >
-        {/* ── Nombre ── */}
-        <div className="text-center mb-2">
-          <h2
-            className="text-[#ea7014] font-black uppercase tracking-widest"
-            style={{ fontSize: nativeSize ? "26px" : "clamp(18px, 4vw, 26px)" }}
-          >
-            {recipientName || "NOMBRE"}
-          </h2>
-        </div>
-
-        {/* ── Divider ── */}
-        <hr className="border-[#ea7014] border-t-[1.5px] mb-6" />
-
-        {/* ── Logo ── */}
-        <div className="text-center mb-1">
-          <span
-            className="text-[#ea7014] font-black leading-none tracking-tight block"
-            style={{ fontSize: nativeSize ? "56px" : "clamp(38px, 8vw, 56px)" }}
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: `${16 * s}px` }}>
+          <div
+            style={{
+              color: COLOR,
+              fontWeight: 900,
+              lineHeight: 1,
+              letterSpacing: "-0.02em",
+              fontSize: `${68 * s}px`,
+            }}
           >
             Carestino
-          </span>
-          <span
-            className="text-[#ea7014] font-semibold block mt-0.5"
+          </div>
+          <div
             style={{
-              fontSize: nativeSize ? "17px" : "clamp(13px, 2.5vw, 17px)",
+              color: COLOR,
+              fontWeight: 600,
+              fontSize: `${21 * s}px`,
+              marginTop: `${12 * s}px`,
             }}
           >
             Bebés Felices
-          </span>
-          <span
-            className="text-[#ea7014] font-bold block mt-0.5 tracking-[0.22em] uppercase"
+          </div>
+          <div
             style={{
-              fontSize: nativeSize ? "13px" : "clamp(10px, 1.9vw, 13px)",
+              color: COLOR,
+              fontWeight: 700,
+              fontSize: `${15 * s}px`,
+              marginTop: `${4 * s}px`,
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
             }}
           >
             Santa Fe
-          </span>
+          </div>
         </div>
 
-        {/* ── Gift Card label ── */}
-        <div className="text-center mt-5 mb-4">
+        {/* Divider */}
+        <div
+          style={{
+            borderTop: `1.5px solid ${COLOR}`,
+            marginBottom: `${20 * s}px`,
+          }}
+        />
+
+        {/* GIFT CARD */}
+        <div style={{ textAlign: "center", marginBottom: `${8 * s}px` }}>
           <span
-            className="text-[#ea7014] font-bold uppercase tracking-[0.18em]"
-            style={{ fontSize: nativeSize ? "20px" : "clamp(14px, 3vw, 20px)" }}
+            style={{
+              color: COLOR,
+              fontWeight: 700,
+              fontSize: `${24 * s}px`,
+              textTransform: "uppercase",
+              letterSpacing: "0.18em",
+            }}
           >
             GIFT CARD
           </span>
         </div>
 
-        {/* ── Monto / Producto ── */}
-        <div className="text-center mb-3">
+        {/* Nombre */}
+        <div style={{ textAlign: "center", marginBottom: `${16 * s}px` }}>
+          <span
+            style={{
+              color: COLOR,
+              fontWeight: 900,
+              fontSize: `${30 * s}px`,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+            }}
+          >
+            {recipientName || "NOMBRE"}
+          </span>
+        </div>
+
+        {/* Monto / Producto */}
+        <div style={{ textAlign: "center", marginBottom: `${16 * s}px` }}>
           {isProduct ? (
             <>
-              <span
-                className="text-[#ea7014] font-bold block mb-1"
-                style={{ fontSize: nativeSize ? "18px" : "clamp(13px, 2.5vw, 18px)" }}
+              <div
+                style={{
+                  color: COLOR,
+                  fontWeight: 700,
+                  fontSize: `${22 * s}px`,
+                  marginBottom: `${4 * s}px`,
+                }}
               >
                 Vale por:
-              </span>
-              <span
-                className="text-[#ea7014] font-black inline-block border-b-2 border-[#ea7014] pb-0.5 min-w-[200px]"
-                style={{ fontSize: nativeSize ? "28px" : "clamp(18px, 4.5vw, 28px)" }}
+              </div>
+              <div
+                style={{
+                  color: COLOR,
+                  fontWeight: 900,
+                  fontSize: `${34 * s}px`,
+                }}
               >
                 {amount || ""}
-              </span>
+              </div>
             </>
           ) : (
-            <>
-              <span
-                className="text-[#ea7014] font-black"
-                style={{ fontSize: nativeSize ? "36px" : "clamp(24px, 5.5vw, 36px)" }}
-              >
-                ${" "}
-              </span>
-              <span
-                className="text-[#ea7014] font-black inline-block border-b-2 border-[#ea7014] pb-0.5 min-w-[120px]"
-                style={{ fontSize: nativeSize ? "36px" : "clamp(24px, 5.5vw, 36px)" }}
-              >
-                {amount || ""}
-              </span>
-            </>
+            <div
+              style={{ color: COLOR, fontWeight: 900, fontSize: `${44 * s}px` }}
+            >
+              $ {amount || ""}
+            </div>
           )}
         </div>
 
-        {/* ── Fecha ── */}
-        <div className="text-center mb-6">
+        {/* Fecha */}
+        <div style={{ textAlign: "center", marginBottom: `${32 * s}px` }}>
           <span
-            className="text-[#ea7014] font-bold"
-            style={{
-              fontSize: nativeSize ? "18px" : "clamp(13px, 2.8vw, 18px)",
-            }}
+            style={{ color: COLOR, fontWeight: 700, fontSize: `${22 * s}px` }}
           >
             Fecha:{" "}
           </span>
           <span
-            className="text-[#ea7014] font-semibold inline-block border-b-2 border-[#ea7014] pb-0.5 min-w-[100px] text-center"
-            style={{
-              fontSize: nativeSize ? "18px" : "clamp(13px, 2.8vw, 18px)",
-            }}
+            style={{ color: COLOR, fontWeight: 600, fontSize: `${22 * s}px` }}
           >
             {date || ""}
           </span>
         </div>
 
-        {/* ── Divider ── */}
-        <hr className="border-[#ea7014] border-t-[1px] mb-4" />
+        {/* Divider */}
+        <div
+          style={{
+            borderTop: `1px solid ${COLOR}`,
+            marginBottom: `${16 * s}px`,
+          }}
+        />
 
-        {/* ── Contacto ── */}
-        <div className="flex items-center justify-center gap-5 mb-4">
-          <div className="flex items-center gap-1.5">
-            {/* Phone icon */}
-            <svg
-              className="flex-shrink-0"
-              width={nativeSize ? 18 : 16}
-              height={nativeSize ? 18 : 16}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#ea7014"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.87a16 16 0 0 0 6.22 6.22l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-            </svg>
-            <span
-              className="text-[#ea7014] font-semibold"
-              style={{
-                fontSize: nativeSize ? "15px" : "clamp(11px, 2.2vw, 15px)",
-              }}
-            >
-              {PHONE}
-            </span>
-          </div>
-
-          {/* Separador vertical */}
-          <span className="text-[#ea7014] opacity-60 font-light">|</span>
-
-          <div className="flex items-center gap-1.5">
-            {/* Location icon */}
-            <svg
-              className="flex-shrink-0"
-              width={nativeSize ? 16 : 14}
-              height={nativeSize ? 16 : 14}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#ea7014"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            <span
-              className="text-[#ea7014] font-semibold"
-              style={{
-                fontSize: nativeSize ? "15px" : "clamp(11px, 2.2vw, 15px)",
-              }}
-            >
-              {ADDRESS}
-            </span>
-          </div>
-        </div>
-
-        {/* ── Divider ── */}
-        <hr className="border-[#ea7014] border-t-[1px] mb-4" />
-
-        {/* ── Términos ── */}
-        <div className="mb-4">
-          <p
-            className="text-[#ea7014] leading-snug"
+        {/* Contacto — img con position:relative para alineación exacta en html2canvas */}
+        <div
+          style={{
+            textAlign: "center",
+            marginBottom: `${16 * s}px`,
+            color: COLOR,
+            fontWeight: 600,
+            fontSize: `${17 * s}px`,
+            lineHeight: `${26 * s}px`,
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt=""
+            src="/phone-icon.svg"
+            width={16 * s}
+            height={16 * s}
             style={{
-              fontSize: nativeSize ? "11.5px" : "clamp(9px, 1.8vw, 11.5px)",
+              display: "inline-block",
+              position: "relative",
+              top: `${4.5 * s}px`,
+            }}
+          />
+          <span style={{ marginLeft: `${nativeSize ? 6 : 8}px` }}>{PHONE}</span>
+          <span
+            style={{
+              opacity: 0.4,
+              fontWeight: 300,
+              fontSize: `${18 * s}px`,
+              margin: `0 ${nativeSize ? 10 * s : 14}px`,
             }}
           >
-            <span className="font-bold">Términos y Condiciones: </span>
-            <span className="font-medium">{TERMS}</span>
+            |
+          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt=""
+            src="/location-icon.svg"
+            width={16 * s}
+            height={16 * s}
+            style={{
+              display: "inline-block",
+              position: "relative",
+              top: `${4.5 * s}px`,
+            }}
+          />
+          <span style={{ marginLeft: `${nativeSize ? 6 : 8}px` }}>
+            {ADDRESS}
+          </span>
+        </div>
+
+        {/* Divider */}
+        <div
+          style={{
+            borderTop: `1px solid ${COLOR}`,
+            marginBottom: `${16 * s}px`,
+          }}
+        />
+
+        {/* Términos */}
+        <div style={{ marginBottom: `${16 * s}px` }}>
+          <p
+            style={{
+              color: COLOR,
+              fontSize: `${13.5 * s}px`,
+              lineHeight: 1.45,
+              margin: 0,
+            }}
+          >
+            <span style={{ fontWeight: 700 }}>Términos y Condiciones: </span>
+            <span style={{ fontWeight: 500 }}>{TERMS}</span>
           </p>
         </div>
 
-        {/* ── Código de seguridad ── */}
+        {/* Código de seguridad */}
         {securityCode && (
-          <div className="mt-auto pt-3 border-t border-[#ea7014]/20 flex flex-col items-center">
+          <div
+            style={{
+              marginTop: "auto",
+              paddingTop: `${12 * s}px`,
+              borderTop: "1px solid rgba(234,112,20,0.2)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
             <span
-              className="text-[#ea7014]/40 font-semibold uppercase tracking-wide"
-              style={{ fontSize: nativeSize ? "9px" : "8px" }}
-            >
-              Código de seguridad
-            </span>
-            <span
-              className="text-[#ea7014] opacity-70 font-mono font-black tracking-widest"
-              style={{ fontSize: nativeSize ? "15px" : "13px" }}
+              style={{
+                color: "rgba(234,112,20,0.75)",
+                fontFamily: "monospace",
+                fontWeight: 900,
+                letterSpacing: "0.1em",
+                fontSize: `${19 * s}px`,
+              }}
             >
               {securityCode}
             </span>

@@ -10,7 +10,7 @@ import html2canvas from "html2canvas";
 interface FormValues {
   recipientName: string;
   amount: string;
-  isProduct: string;  // radio inputs always return strings
+  isProduct: string; // radio inputs always return strings
   productDescription: string;
   date: string;
 }
@@ -50,16 +50,17 @@ export default function Home() {
     setSecurityCode(generateSecurityCode());
     setToday(todayStr);
     setValue("date", todayStr);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pdfCardRef = useRef<HTMLDivElement>(null);
 
   const cardData: GiftCardData = {
     recipientName: watchedValues.recipientName || "NOMBRE",
-    amount: watchedValues.isProduct === "true"
-      ? watchedValues.productDescription
-      : watchedValues.amount || "",
+    amount:
+      watchedValues.isProduct === "true"
+        ? watchedValues.productDescription
+        : watchedValues.amount || "",
     isProduct: watchedValues.isProduct === "true",
     date: watchedValues.date ? formatDate(watchedValues.date) : "",
     securityCode,
@@ -69,20 +70,61 @@ export default function Home() {
     if (!pdfCardRef.current) return;
     setIsGeneratingPdf(true);
     try {
+      // Wait for images and fonts to fully load
+      await new Promise((r) => setTimeout(r, 300));
+
+      // Pre-load icon images to ensure html2canvas can draw them
+      const imgEls = pdfCardRef.current.querySelectorAll("img");
+      await Promise.all(
+        Array.from(imgEls).map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              if (img.complete) return resolve();
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+            }),
+        ),
+      );
+
+      // Resolve the CSS-variable to the real font-face name so html2canvas
+      // can use it even if it fails to resolve var() in the clone.
+      const computedFont = window.getComputedStyle(
+        pdfCardRef.current,
+      ).fontFamily;
+
+      const PX_TO_MM = 25.4 / 96;
+      const cardW = pdfCardRef.current.offsetWidth;
+      const cardH = pdfCardRef.current.offsetHeight;
+      const pdfW = cardW * PX_TO_MM;
+      const pdfH = cardH * PX_TO_MM;
+
       const canvas = await html2canvas(pdfCardRef.current, {
         scale: 3,
         useCORS: true,
+        allowTaint: true,
         backgroundColor: "#FAF7F2",
         logging: false,
+        onclone: (_doc, clonedEl) => {
+          // Force the resolved font on every element inside the clone
+          // but preserve monospace on the security code and skip non-HTML elements
+          clonedEl.style.fontFamily = computedFont;
+          clonedEl.querySelectorAll("*").forEach((child) => {
+            if (
+              child instanceof HTMLElement &&
+              !(child instanceof HTMLImageElement) &&
+              !child.style.fontFamily.includes("monospace")
+            ) {
+              child.style.fontFamily = computedFont;
+            }
+          });
+        },
       });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({
-        orientation: "portrait",
+        orientation: pdfH > pdfW ? "portrait" : "landscape",
         unit: "mm",
-        format: "a6",
+        format: [pdfW, pdfH],
       });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = pdf.internal.pageSize.getHeight();
       pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
       pdf.save(`giftcard-carestino-${securityCode}.pdf`);
     } catch (err) {
@@ -186,7 +228,9 @@ export default function Home() {
                   <input
                     {...register("amount", {
                       validate: (v) =>
-                        watchedValues.isProduct || !!v || "Ingresá un monto",
+                        watchedValues.isProduct === "true" ||
+                        !!v ||
+                        "Ingres\u00e1 un monto",
                     })}
                     type="number"
                     min={0}
@@ -269,10 +313,59 @@ export default function Home() {
           <div className="shadow-2xl shadow-[#ea7014]/20 rounded-lg overflow-hidden w-full max-w-sm">
             <GiftCard data={cardData} />
           </div>
-          <p className="text-xs text-gray-400 text-center max-w-xs">
-            Completá el formulario para actualizar la vista previa
-            instantáneamente. Luego hacé clic en <strong>Previsualizar</strong>{" "}
-            para descargar.
+
+          {/* Botones de descarga — visibles directamente */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+            <button
+              type="button"
+              onClick={() => handleSubmit(() => setShowModal(true))()}
+              className="flex-1 flex items-center justify-center gap-2 bg-[#ea7014] hover:bg-[#d4620e] text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="flex-shrink-0"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Descargar PDF
+            </button>
+
+            <button
+              type="button"
+              disabled
+              className="flex-1 flex items-center justify-center gap-2 bg-gray-200 text-gray-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="flex-shrink-0"
+              >
+                <polygon points="23 7 16 12 23 17 23 7" />
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+              Video WA
+              <span className="text-xs">(pronto)</span>
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-400 text-center max-w-xs -mt-2">
+            Clic en <strong>Descargar PDF</strong> para previsualizar y
+            descargar.
           </p>
         </section>
       </div>
@@ -283,7 +376,7 @@ export default function Home() {
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={(e) => e.target === e.currentTarget && setShowModal(false)}
         >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 flex flex-col items-center gap-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-[580px] w-full p-6 flex flex-col items-center gap-6">
             <div className="flex items-center justify-between w-full">
               <h3 className="text-lg font-black text-[#ea7014] uppercase tracking-wide">
                 Vista previa final
@@ -296,7 +389,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="shadow-xl rounded-lg overflow-hidden">
+            <div className="shadow-xl rounded-lg">
               <GiftCard data={cardData} ref={pdfCardRef} nativeSize />
             </div>
 
@@ -354,7 +447,7 @@ export default function Home() {
               {/* Video WhatsApp — próximamente */}
               <button
                 disabled
-                className="flex-1 flex items-center justify-center gap-2 bg-[#ea7014]/15 text-[#ea7014] font-bold py-3 rounded-xl opacity-60 cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 bg-gray-200 text-gray-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed"
                 title="Disponible en la Fase 4"
               >
                 <svg
