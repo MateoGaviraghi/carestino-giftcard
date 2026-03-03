@@ -373,7 +373,12 @@ export default function Home() {
       {/* Hidden off-screen card for PDF capture (nativeSize keeps position:relative hack for html2canvas) */}
       <div
         aria-hidden
-        style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none" }}
+        style={{
+          position: "fixed",
+          left: "-9999px",
+          top: 0,
+          pointerEvents: "none",
+        }}
       >
         <GiftCard data={cardData} ref={pdfCardRef} nativeSize />
       </div>
