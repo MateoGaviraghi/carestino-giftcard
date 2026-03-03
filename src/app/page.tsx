@@ -370,6 +370,14 @@ export default function Home() {
         </section>
       </div>
 
+      {/* Hidden off-screen card for PDF capture (nativeSize keeps position:relative hack for html2canvas) */}
+      <div
+        aria-hidden
+        style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none" }}
+      >
+        <GiftCard data={cardData} ref={pdfCardRef} nativeSize />
+      </div>
+
       {/* ══════════ MODAL ══════════ */}
       {showModal && (
         <div
@@ -390,7 +398,7 @@ export default function Home() {
             </div>
 
             <div className="shadow-xl rounded-lg">
-              <GiftCard data={cardData} ref={pdfCardRef} nativeSize />
+              <GiftCard data={cardData} />
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full">

@@ -181,56 +181,109 @@ const GiftCard = forwardRef<HTMLDivElement, GiftCardProps>(
           }}
         />
 
-        {/* Contacto — img con position:relative para alineación exacta en html2canvas */}
-        <div
-          style={{
-            textAlign: "center",
-            marginBottom: `${16 * s}px`,
-            color: COLOR,
-            fontWeight: 600,
-            fontSize: `${17 * s}px`,
-            lineHeight: `${26 * s}px`,
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            alt=""
-            src="/phone-icon.svg"
-            width={16 * s}
-            height={16 * s}
+        {/* Contacto */}
+        {nativeSize ? (
+          /* PDF: position:relative+top compensa bug de html2canvas */
+          <div
             style={{
-              display: "inline-block",
-              position: "relative",
-              top: `${4.5 * s}px`,
-            }}
-          />
-          <span style={{ marginLeft: `${nativeSize ? 6 : 8}px` }}>{PHONE}</span>
-          <span
-            style={{
-              opacity: 0.4,
-              fontWeight: 300,
-              fontSize: `${18 * s}px`,
-              margin: `0 ${nativeSize ? 10 * s : 14}px`,
+              textAlign: "center",
+              marginBottom: `${16}px`,
+              color: COLOR,
+              fontWeight: 600,
+              fontSize: `${17}px`,
+              lineHeight: `${26}px`,
             }}
           >
-            |
-          </span>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            alt=""
-            src="/location-icon.svg"
-            width={16 * s}
-            height={16 * s}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt=""
+              src="/phone-icon.svg"
+              width={16}
+              height={16}
+              style={{
+                display: "inline-block",
+                position: "relative",
+                top: "5.5px",
+              }}
+            />
+            <span style={{ marginLeft: "8px" }}>{PHONE}</span>
+            <span
+              style={{
+                opacity: 0.4,
+                fontWeight: 300,
+                fontSize: "18px",
+                margin: "0 10px",
+              }}
+            >
+              |
+            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt=""
+              src="/location-icon.svg"
+              width={16}
+              height={16}
+              style={{
+                display: "inline-block",
+                position: "relative",
+                top: "5.5px",
+              }}
+            />
+            <span style={{ marginLeft: "8px" }}>{ADDRESS}</span>
+          </div>
+        ) : (
+          /* Preview: vertical-align:middle funciona perfecto en el browser */
+          <div
             style={{
-              display: "inline-block",
-              position: "relative",
-              top: `${4.5 * s}px`,
+              textAlign: "center",
+              marginBottom: `${16 * s}px`,
+              color: COLOR,
+              fontWeight: 600,
+              fontSize: `${17 * s}px`,
+              lineHeight: `${26 * s}px`,
             }}
-          />
-          <span style={{ marginLeft: `${nativeSize ? 6 : 8}px` }}>
-            {ADDRESS}
-          </span>
-        </div>
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt=""
+              src="/phone-icon.svg"
+              width={16 * s}
+              height={16 * s}
+              style={{
+                display: "inline-block",
+                verticalAlign: "middle",
+              }}
+            />
+            <span style={{ marginLeft: "8px", verticalAlign: "middle" }}>
+              {PHONE}
+            </span>
+            <span
+              style={{
+                opacity: 0.4,
+                fontWeight: 300,
+                fontSize: `${18 * s}px`,
+                margin: "0 14px",
+                verticalAlign: "middle",
+              }}
+            >
+              |
+            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt=""
+              src="/location-icon.svg"
+              width={16 * s}
+              height={16 * s}
+              style={{
+                display: "inline-block",
+                verticalAlign: "middle",
+              }}
+            />
+            <span style={{ marginLeft: "8px", verticalAlign: "middle" }}>
+              {ADDRESS}
+            </span>
+          </div>
+        )}
 
         {/* Divider */}
         <div
