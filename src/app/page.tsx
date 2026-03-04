@@ -8,6 +8,7 @@ import GiftCard, { GiftCardData } from "@/components/GiftCard";
 import { generateSecurityCode, formatDate } from "@/lib/utils";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { generateGiftCardVideo } from "@/lib/generateVideo";
 
 interface AdminCard {
   id: string;
@@ -69,6 +70,8 @@ export default function Home() {
   const [today, setToday] = useState<string>("");
   const [showModal, setShowModal] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
 
   // Admin state
   const [cards, setCards] = useState<AdminCard[]>([]);
@@ -242,6 +245,67 @@ export default function Home() {
     cardData.isProduct,
     cardData.date,
   ]);
+
+  const downloadVideo = useCallback(async () => {
+    if (!pdfCardRef.current) return;
+    setIsGeneratingVideo(true);
+    setVideoProgress(0);
+    try {
+      // 1. Capture the gift card as an image
+      await new Promise((r) => setTimeout(r, 300));
+      const computedFont = window.getComputedStyle(
+        pdfCardRef.current,
+      ).fontFamily;
+      const canvas = await html2canvas(pdfCardRef.current, {
+        scale: 3,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#FAF7F2",
+        logging: false,
+        onclone: (_doc, clonedEl) => {
+          clonedEl.style.fontFamily = computedFont;
+          clonedEl.querySelectorAll("*").forEach((child) => {
+            if (
+              child instanceof HTMLElement &&
+              !(child instanceof HTMLImageElement) &&
+              !child.style.fontFamily.includes("monospace")
+            ) {
+              child.style.fontFamily = computedFont;
+            }
+          });
+        },
+      });
+
+      // 2. Convert canvas to Image element
+      const img = new Image();
+      img.src = canvas.toDataURL("image/png");
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+      });
+
+      // 3. Generate animated video
+      const blob = await generateGiftCardVideo({
+        cardImage: img,
+        recipientName: cardData.recipientName,
+        onProgress: setVideoProgress,
+      });
+
+      // 4. Download
+      const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `giftcard-carestino-${securityCode}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error generando video:", err);
+      alert("Ocurrió un error al generar el video. Intentá de nuevo.");
+    } finally {
+      setIsGeneratingVideo(false);
+      setVideoProgress(0);
+    }
+  }, [securityCode, cardData.recipientName]);
 
   return (
     <main className="min-h-screen bg-[#f8f4ef] py-10 px-4">
@@ -465,25 +529,34 @@ export default function Home() {
 
             <button
               type="button"
-              disabled
-              className="flex-1 flex items-center justify-center gap-2 bg-gray-200 text-gray-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed"
+              onClick={() => handleSubmit(() => downloadVideo())()}
+              disabled={isGeneratingVideo}
+              className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <polygon points="23 7 16 12 23 17 23 7" />
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-              </svg>
-              Video WA
-              <span className="text-xs">(pronto)</span>
+              {isGeneratingVideo ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {videoProgress}%
+                </>
+              ) : (
+                <>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="shrink-0"
+                  >
+                    <polygon points="23 7 16 12 23 17 23 7" />
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                  </svg>
+                  Video WA
+                </>
+              )}
             </button>
           </div>
 
@@ -576,27 +649,35 @@ export default function Home() {
                 )}
               </button>
 
-              {/* Video WhatsApp — próximamente */}
+              {/* Video WhatsApp */}
               <button
-                disabled
-                className="flex-1 flex items-center justify-center gap-2 bg-gray-200 text-gray-400 font-bold py-3 px-4 rounded-xl cursor-not-allowed"
-                title="Disponible en la Fase 4"
+                onClick={downloadVideo}
+                disabled={isGeneratingVideo}
+                className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polygon points="23 7 16 12 23 17 23 7" />
-                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                </svg>
-                Video WhatsApp
-                <span className="text-xs opacity-70">(pronto)</span>
+                {isGeneratingVideo ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {videoProgress}%
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="23 7 16 12 23 17 23 7" />
+                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                    </svg>
+                    Video WhatsApp
+                  </>
+                )}
               </button>
             </div>
 
