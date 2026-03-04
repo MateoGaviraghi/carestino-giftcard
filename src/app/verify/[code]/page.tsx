@@ -4,42 +4,31 @@ interface VerifyPageProps {
   params: Promise<{ code: string }>;
 }
 
-type CardStatus = "ACTIVE" | "USED" | "CANCELLED";
+type CardStatus = "ACTIVE" | "USED";
 
 const statusConfig: Record<
   CardStatus,
   {
     emoji: string;
     label: string;
-    color: string;
-    bg: string;
-    border: string;
+    labelClass: string;
+    badgeClass: string;
     message: string;
   }
 > = {
   ACTIVE: {
     emoji: "✅",
     label: "VÁLIDA",
-    color: "#16a34a",
-    bg: "#f0fdf4",
-    border: "#bbf7d0",
+    labelClass: "text-green-600",
+    badgeClass: "bg-green-50 border-green-200",
     message: "Esta gift card está activa y lista para canjear.",
   },
   USED: {
     emoji: "❌",
     label: "UTILIZADA",
-    color: "#dc2626",
-    bg: "#fef2f2",
-    border: "#fecaca",
+    labelClass: "text-red-600",
+    badgeClass: "bg-red-50 border-red-200",
     message: "Esta gift card ya fue utilizada.",
-  },
-  CANCELLED: {
-    emoji: "⛔",
-    label: "CANCELADA",
-    color: "#9ca3af",
-    bg: "#f9fafb",
-    border: "#e5e7eb",
-    message: "Esta gift card fue cancelada.",
   },
 };
 
@@ -99,20 +88,13 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
             <div>
               {/* Status badge */}
               <div
-                className="rounded-xl p-4 mb-6 text-center border-2"
-                style={{
-                  backgroundColor: status.bg,
-                  borderColor: status.border,
-                }}
+                className={`rounded-xl p-4 mb-6 text-center border-2 ${status.badgeClass}`}
               >
                 <p className="text-4xl mb-1">{status.emoji}</p>
-                <p
-                  className="text-xl font-black"
-                  style={{ color: status.color }}
-                >
+                <p className={`text-xl font-black ${status.labelClass}`}>
                   {status.label}
                 </p>
-                <p className="text-sm mt-1" style={{ color: status.color }}>
+                <p className={`text-sm mt-1 ${status.labelClass}`}>
                   {status.message}
                 </p>
               </div>

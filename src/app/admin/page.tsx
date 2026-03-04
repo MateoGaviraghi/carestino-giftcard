@@ -129,6 +129,7 @@ export default function AdminPage() {
             className="flex-1 border-2 border-[#ea7014]/30 rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:border-[#ea7014]"
           />
           <select
+            title="Filtrar por estado"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="border-2 border-[#ea7014]/30 rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:border-[#ea7014] bg-white"

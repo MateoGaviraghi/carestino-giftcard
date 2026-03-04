@@ -443,7 +443,7 @@ export default function Home() {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="flex-shrink-0"
+                className="shrink-0"
               >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="7 10 12 15 17 10" />
@@ -466,7 +466,7 @@ export default function Home() {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="flex-shrink-0"
+                className="shrink-0"
               >
                 <polygon points="23 7 16 12 23 17 23 7" />
                 <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
@@ -486,12 +486,7 @@ export default function Home() {
       {/* Hidden off-screen card for PDF capture (nativeSize keeps position:relative hack for html2canvas) */}
       <div
         aria-hidden
-        style={{
-          position: "fixed",
-          left: "-9999px",
-          top: 0,
-          pointerEvents: "none",
-        }}
+        className="fixed top-0 -left-2499.75 pointer-events-none"
       >
         <GiftCard data={cardData} ref={pdfCardRef} nativeSize />
       </div>
@@ -502,7 +497,7 @@ export default function Home() {
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={(e) => e.target === e.currentTarget && setShowModal(false)}
         >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-[580px] w-full p-6 flex flex-col items-center gap-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-145 w-full p-6 flex flex-col items-center gap-6">
             <div className="flex items-center justify-between w-full">
               <h3 className="text-lg font-black text-[#ea7014] uppercase tracking-wide">
                 Vista previa final
@@ -672,6 +667,7 @@ export default function Home() {
                 className="flex-1 border-2 border-[#ea7014]/30 rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:border-[#ea7014]"
               />
               <select
+                title="Filtrar por estado"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="border-2 border-[#ea7014]/30 rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:border-[#ea7014] bg-white"
