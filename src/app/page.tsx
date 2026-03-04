@@ -312,7 +312,7 @@ export default function Home() {
                     className="sr-only"
                   />
                   <div
-                    className={`px-4 py-2.5 text-center text-sm font-bold transition-colors ${
+                    className={`px-2 sm:px-4 py-2.5 text-center text-sm font-bold transition-colors whitespace-nowrap ${
                       watchedValues.isProduct !== "true"
                         ? "bg-[#ea7014] text-white"
                         : "bg-white text-[#ea7014]"
@@ -329,7 +329,7 @@ export default function Home() {
                     className="sr-only"
                   />
                   <div
-                    className={`px-4 py-2.5 text-center text-sm font-bold transition-colors ${
+                    className={`px-2 sm:px-4 py-2.5 text-center text-sm font-bold transition-colors whitespace-nowrap ${
                       watchedValues.isProduct === "true"
                         ? "bg-[#ea7014] text-white"
                         : "bg-white text-[#ea7014]"
