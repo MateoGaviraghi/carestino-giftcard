@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import GiftCard, { GiftCardData } from "@/components/GiftCard";
 import { generateSecurityCode, formatDate } from "@/lib/utils";
@@ -46,6 +47,8 @@ const LABEL_CLASS =
   "block text-[#ea7014] font-bold mb-1.5 text-sm uppercase tracking-wide";
 
 export default function Home() {
+  const router = useRouter();
+
   const {
     register,
     watch,
@@ -112,6 +115,11 @@ export default function Home() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
   };
 
   // Generate random/dynamic values only on the client to avoid SSR hydration mismatch
@@ -239,13 +247,19 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#f8f4ef] py-10 px-4">
       {/* ── Header ── */}
-      <header className="text-center mb-10">
+      <header className="text-center mb-10 relative">
         <h1 className="text-4xl font-black text-[#ea7014] tracking-tight">
           Carestino
         </h1>
         <p className="text-[#ea7014]/70 font-semibold mt-1 tracking-wide text-sm uppercase">
           Generador de Gift Cards
         </p>
+        <button
+          onClick={handleLogout}
+          className="absolute right-0 top-0 text-xs font-bold text-[#ea7014]/50 hover:text-[#ea7014] transition-colors py-1 px-2 rounded-lg hover:bg-[#ea7014]/10"
+        >
+          Cerrar sesión
+        </button>
       </header>
 
       <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
