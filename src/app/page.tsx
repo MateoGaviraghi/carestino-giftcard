@@ -251,7 +251,25 @@ export default function Home() {
     setIsGeneratingVideo(true);
     setVideoProgress(0);
     try {
-      // 1. Capture the gift card as an image
+      // 1. Guardar la gift card en la base de datos
+      try {
+        await fetch("/api/giftcards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code: securityCode,
+            recipientName: cardData.recipientName,
+            amount: cardData.amount,
+            isProduct: cardData.isProduct ?? false,
+            date: cardData.date,
+          }),
+        });
+        fetchCards();
+      } catch (dbErr) {
+        console.warn("No se pudo guardar en la base de datos:", dbErr);
+      }
+
+      // 2. Capture the gift card as an image
       await new Promise((r) => setTimeout(r, 300));
       const computedFont = window.getComputedStyle(
         pdfCardRef.current,
@@ -305,7 +323,14 @@ export default function Home() {
       setIsGeneratingVideo(false);
       setVideoProgress(0);
     }
-  }, [securityCode, cardData.recipientName]);
+  }, [
+    fetchCards,
+    securityCode,
+    cardData.recipientName,
+    cardData.amount,
+    cardData.isProduct,
+    cardData.date,
+  ]);
 
   return (
     <main className="min-h-screen bg-[#f8f4ef] py-10 px-4">
