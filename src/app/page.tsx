@@ -15,7 +15,7 @@ interface AdminCard {
   amount: string;
   isProduct: boolean;
   date: string;
-  status: "ACTIVE" | "USED" | "CANCELLED";
+  status: "ACTIVE" | "USED";
   createdAt: string;
   usedAt: string | null;
 }
@@ -23,13 +23,11 @@ interface AdminCard {
 const STATUS_LABEL: Record<AdminCard["status"], string> = {
   ACTIVE: "Activa",
   USED: "Utilizada",
-  CANCELLED: "Cancelada",
 };
 
 const STATUS_COLOR: Record<AdminCard["status"], string> = {
   ACTIVE: "bg-green-100 text-green-700 border-green-200",
   USED: "bg-red-100 text-red-600 border-red-200",
-  CANCELLED: "bg-gray-100 text-gray-500 border-gray-200",
 };
 
 interface FormValues {
@@ -621,7 +619,6 @@ export default function Home() {
           total: cards.length,
           active: cards.filter((c) => c.status === "ACTIVE").length,
           used: cards.filter((c) => c.status === "USED").length,
-          cancelled: cards.filter((c) => c.status === "CANCELLED").length,
         };
         return (
           <div className="max-w-6xl mx-auto mt-14 space-y-6">
@@ -635,7 +632,7 @@ export default function Home() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               {[
                 {
                   label: "Total",
@@ -651,11 +648,6 @@ export default function Home() {
                   label: "Utilizadas",
                   value: counts.used,
                   color: "text-red-500",
-                },
-                {
-                  label: "Canceladas",
-                  value: counts.cancelled,
-                  color: "text-gray-400",
                 },
               ].map((s) => (
                 <div
@@ -687,7 +679,6 @@ export default function Home() {
                 <option value="ALL">Todos los estados</option>
                 <option value="ACTIVE">Activas</option>
                 <option value="USED">Utilizadas</option>
-                <option value="CANCELLED">Canceladas</option>
               </select>
               <button
                 onClick={fetchCards}
@@ -795,19 +786,6 @@ export default function Home() {
                                   className="bg-[#ea7014] hover:bg-[#d4620e] disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
                                 >
                                   Reactivar
-                                </button>
-                              )}
-                              {card.status !== "CANCELLED" && (
-                                <button
-                                  onClick={() =>
-                                    handleStatusChange(card.code, "CANCELLED")
-                                  }
-                                  disabled={
-                                    actionLoading === card.code + "CANCELLED"
-                                  }
-                                  className="bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                                >
-                                  Cancelar
                                 </button>
                               )}
                               <button

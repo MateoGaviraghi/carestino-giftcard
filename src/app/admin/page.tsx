@@ -9,7 +9,7 @@ interface GiftCard {
   amount: string;
   isProduct: boolean;
   date: string;
-  status: "ACTIVE" | "USED" | "CANCELLED";
+  status: "ACTIVE" | "USED";
   createdAt: string;
   usedAt: string | null;
 }
@@ -17,13 +17,11 @@ interface GiftCard {
 const STATUS_LABEL: Record<GiftCard["status"], string> = {
   ACTIVE: "Activa",
   USED: "Utilizada",
-  CANCELLED: "Cancelada",
 };
 
 const STATUS_COLOR: Record<GiftCard["status"], string> = {
   ACTIVE: "bg-green-100 text-green-700 border-green-200",
   USED: "bg-red-100 text-red-600 border-red-200",
-  CANCELLED: "bg-gray-100 text-gray-500 border-gray-200",
 };
 
 export default function AdminPage() {
@@ -89,7 +87,6 @@ export default function AdminPage() {
     total: cards.length,
     active: cards.filter((c) => c.status === "ACTIVE").length,
     used: cards.filter((c) => c.status === "USED").length,
-    cancelled: cards.filter((c) => c.status === "CANCELLED").length,
   };
 
   return (
@@ -104,16 +101,11 @@ export default function AdminPage() {
 
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           {[
             { label: "Total", value: counts.total, color: "text-[#ea7014]" },
             { label: "Activas", value: counts.active, color: "text-green-600" },
             { label: "Utilizadas", value: counts.used, color: "text-red-500" },
-            {
-              label: "Canceladas",
-              value: counts.cancelled,
-              color: "text-gray-400",
-            },
           ].map((s) => (
             <div
               key={s.label}
@@ -144,7 +136,6 @@ export default function AdminPage() {
             <option value="ALL">Todos los estados</option>
             <option value="ACTIVE">Activas</option>
             <option value="USED">Utilizadas</option>
-            <option value="CANCELLED">Canceladas</option>
           </select>
           <button
             onClick={fetchCards}
@@ -245,19 +236,6 @@ export default function AdminPage() {
                               className="bg-[#ea7014] hover:bg-[#d4620e] disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
                             >
                               Reactivar
-                            </button>
-                          )}
-                          {card.status !== "CANCELLED" && (
-                            <button
-                              onClick={() =>
-                                handleStatusChange(card.code, "CANCELLED")
-                              }
-                              disabled={
-                                actionLoading === card.code + "CANCELLED"
-                              }
-                              className="bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                            >
-                              Cancelar
                             </button>
                           )}
                           <button
