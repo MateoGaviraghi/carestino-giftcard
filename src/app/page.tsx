@@ -246,18 +246,16 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#f8f4ef] py-10 px-4">
       {/* ── Header ── */}
-      <header className="max-w-5xl mx-auto mb-10 relative flex items-center justify-center min-h-16">
-        {/* título centrado respecto a toda la barra */}
-        <div className="text-center">
+      <header className="max-w-5xl mx-auto mb-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+        <div className="text-center sm:text-left">
           <h1 className="text-4xl font-black text-[#ea7014] tracking-tight">
             Carestino
           </h1>
-          <p className="text-[#ea7014]/70 font-semibold mt-1 tracking-wide text-sm uppercase">
+          <p className="text-[#ea7014]/70 font-semibold mt-0.5 tracking-wide text-sm uppercase">
             Generador de Gift Cards
           </p>
         </div>
-        {/* botones anclados a la derecha */}
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <Link
             href="/scan"
             className="text-sm font-bold text-white bg-[#ea7014] hover:bg-[#d4620e] transition-colors py-2 px-4 rounded-xl shadow-sm whitespace-nowrap"
@@ -414,7 +412,7 @@ export default function Home() {
               <p className="text-xs text-[#ea7014]/60 font-semibold uppercase tracking-wide mb-1">
                 Código de seguridad (generado automáticamente)
               </p>
-              <p className="text-[#ea7014] font-black font-mono tracking-widest text-2xl">
+              <p className="text-[#ea7014] font-black font-mono tracking-widest text-xl sm:text-2xl break-all">
                 {securityCode}
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -697,7 +695,7 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Table */}
+            {/* Tabla desktop */}
             <div className="bg-white rounded-xl border border-[#ea7014]/10 shadow-sm overflow-hidden">
               {cardsLoading ? (
                 <div className="py-16 text-center text-gray-400 font-medium">
@@ -708,111 +706,177 @@ export default function Home() {
                   No hay gift cards
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-[#ea7014]/5 border-b border-[#ea7014]/10">
-                      <tr>
-                        {[
-                          "Código",
-                          "Destinatario",
-                          "Monto / Producto",
-                          "Fecha",
-                          "Estado",
-                          "Acciones",
-                        ].map((h) => (
-                          <th
-                            key={h}
-                            className="text-left px-4 py-3 font-bold text-[#ea7014] uppercase tracking-wide text-xs"
+                <>
+                  {/* Cards para mobile */}
+                  <div className="sm:hidden divide-y divide-gray-100">
+                    {filtered.map((card) => (
+                      <div key={card.id} className="p-4 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs font-bold text-[#ea7014]/80 tracking-wider">
+                            {card.code}
+                          </span>
+                          <span
+                            className={`border rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_COLOR[card.status]}`}
                           >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {filtered.map((card) => (
-                        <tr
-                          key={card.id}
-                          className="hover:bg-[#faf7f2] transition-colors"
-                        >
-                          <td className="px-4 py-3">
-                            <span className="font-mono text-xs font-bold text-[#ea7014]/80 tracking-wider">
-                              {card.code}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="font-semibold text-gray-800">
-                              {card.recipientName}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="font-semibold text-[#ea7014]">
-                              {card.isProduct
-                                ? card.amount
-                                : `$ ${card.amount}`}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">
+                            {STATUS_LABEL[card.status]}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-gray-800 text-sm">
+                            {card.recipientName}
+                          </span>
+                          <span className="font-semibold text-[#ea7014] text-sm">
+                            {card.isProduct ? card.amount : `$ ${card.amount}`}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400">
                             {card.date}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-block border rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_COLOR[card.status]}`}
-                            >
-                              {STATUS_LABEL[card.status]}
-                            </span>
-                            {card.status === "USED" && card.usedAt && (
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                {new Date(card.usedAt).toLocaleDateString(
-                                  "es-AR",
-                                )}
-                              </p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {card.status !== "USED" && (
-                                <button
-                                  onClick={() =>
-                                    handleStatusChange(card.code, "USED")
-                                  }
-                                  disabled={
-                                    actionLoading === card.code + "USED"
-                                  }
-                                  className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                                >
-                                  ✓ Utilizada
-                                </button>
-                              )}
-                              {card.status === "USED" && (
-                                <button
-                                  onClick={() =>
-                                    handleStatusChange(card.code, "ACTIVE")
-                                  }
-                                  disabled={
-                                    actionLoading === card.code + "ACTIVE"
-                                  }
-                                  className="bg-[#ea7014] hover:bg-[#d4620e] disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                                >
-                                  Reactivar
-                                </button>
-                              )}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {card.status !== "USED" && (
                               <button
-                                onClick={() => handleDeleteCard(card.code)}
-                                disabled={
-                                  actionLoading === card.code + "delete"
+                                onClick={() =>
+                                  handleStatusChange(card.code, "USED")
                                 }
-                                className="bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-600 text-xs font-bold px-2 py-1.5 rounded-lg transition-colors"
+                                disabled={actionLoading === card.code + "USED"}
+                                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
                               >
-                                🗑
+                                ✓ Utilizada
                               </button>
-                            </div>
-                          </td>
+                            )}
+                            {card.status === "USED" && (
+                              <button
+                                onClick={() =>
+                                  handleStatusChange(card.code, "ACTIVE")
+                                }
+                                disabled={
+                                  actionLoading === card.code + "ACTIVE"
+                                }
+                                className="bg-[#ea7014] hover:bg-[#d4620e] disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                              >
+                                Reactivar
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteCard(card.code)}
+                              disabled={actionLoading === card.code + "delete"}
+                              className="bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-600 text-xs font-bold px-2 py-1.5 rounded-lg transition-colors"
+                            >
+                              🗑
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Tabla para desktop */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-[#ea7014]/5 border-b border-[#ea7014]/10">
+                        <tr>
+                          {[
+                            "Código",
+                            "Destinatario",
+                            "Monto / Producto",
+                            "Fecha",
+                            "Estado",
+                            "Acciones",
+                          ].map((h) => (
+                            <th
+                              key={h}
+                              className="text-left px-4 py-3 font-bold text-[#ea7014] uppercase tracking-wide text-xs"
+                            >
+                              {h}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filtered.map((card) => (
+                          <tr
+                            key={card.id}
+                            className="hover:bg-[#faf7f2] transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <span className="font-mono text-xs font-bold text-[#ea7014]/80 tracking-wider">
+                                {card.code}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="font-semibold text-gray-800">
+                                {card.recipientName}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="font-semibold text-[#ea7014]">
+                                {card.isProduct
+                                  ? card.amount
+                                  : `$ ${card.amount}`}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {card.date}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-block border rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_COLOR[card.status]}`}
+                              >
+                                {STATUS_LABEL[card.status]}
+                              </span>
+                              {card.status === "USED" && card.usedAt && (
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {new Date(card.usedAt).toLocaleDateString(
+                                    "es-AR",
+                                  )}
+                                </p>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {card.status !== "USED" && (
+                                  <button
+                                    onClick={() =>
+                                      handleStatusChange(card.code, "USED")
+                                    }
+                                    disabled={
+                                      actionLoading === card.code + "USED"
+                                    }
+                                    className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                                  >
+                                    ✓ Utilizada
+                                  </button>
+                                )}
+                                {card.status === "USED" && (
+                                  <button
+                                    onClick={() =>
+                                      handleStatusChange(card.code, "ACTIVE")
+                                    }
+                                    disabled={
+                                      actionLoading === card.code + "ACTIVE"
+                                    }
+                                    className="bg-[#ea7014] hover:bg-[#d4620e] disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                                  >
+                                    Reactivar
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteCard(card.code)}
+                                  disabled={
+                                    actionLoading === card.code + "delete"
+                                  }
+                                  className="bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-600 text-xs font-bold px-2 py-1.5 rounded-lg transition-colors"
+                                >
+                                  🗑
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </div>
