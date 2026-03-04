@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import GiftCard, { GiftCardData } from "@/components/GiftCard";
 import { generateSecurityCode, formatDate } from "@/lib/utils";
@@ -245,24 +246,36 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#f8f4ef] py-10 px-4">
       {/* ── Header ── */}
-      <header className="text-center mb-10 relative">
-        <h1 className="text-4xl font-black text-[#ea7014] tracking-tight">
-          Carestino
-        </h1>
-        <p className="text-[#ea7014]/70 font-semibold mt-1 tracking-wide text-sm uppercase">
-          Generador de Gift Cards
-        </p>
-        <button
-          onClick={handleLogout}
-          className="absolute right-0 top-0 text-xs font-bold text-[#ea7014]/50 hover:text-[#ea7014] transition-colors py-1 px-2 rounded-lg hover:bg-[#ea7014]/10"
-        >
-          Cerrar sesión
-        </button>
+      <header className="max-w-5xl mx-auto mb-10 relative flex items-center justify-center min-h-16">
+        {/* título centrado respecto a toda la barra */}
+        <div className="text-center">
+          <h1 className="text-4xl font-black text-[#ea7014] tracking-tight">
+            Carestino
+          </h1>
+          <p className="text-[#ea7014]/70 font-semibold mt-1 tracking-wide text-sm uppercase">
+            Generador de Gift Cards
+          </p>
+        </div>
+        {/* botones anclados a la derecha */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-3">
+          <Link
+            href="/scan"
+            className="text-sm font-bold text-white bg-[#ea7014] hover:bg-[#d4620e] transition-colors py-2 px-4 rounded-xl shadow-sm whitespace-nowrap"
+          >
+            📷 Lector QR
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="text-sm font-bold text-[#ea7014] border border-[#ea7014]/30 hover:bg-[#ea7014]/10 transition-colors py-2 px-4 rounded-xl whitespace-nowrap"
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </header>
 
       <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
         {/* ══════════ FORMULARIO ══════════ */}
-        <section className="bg-white rounded-2xl shadow-sm border border-[#ea7014]/10 p-8">
+        <section className="bg-white rounded-2xl shadow-sm border border-[#ea7014]/10 p-6">
           <h2 className="text-xl font-black text-[#ea7014] mb-6 uppercase tracking-wide">
             Datos del Gift Card
           </h2>
@@ -270,7 +283,7 @@ export default function Home() {
           <form
             onSubmit={handleSubmit(() => setShowModal(true))}
             noValidate
-            className="space-y-5"
+            className="space-y-3"
           >
             {/* Nombre */}
             <div>
@@ -420,7 +433,7 @@ export default function Home() {
 
         {/* ══════════ VISTA PREVIA EN TIEMPO REAL ══════════ */}
         <section className="flex flex-col items-center gap-6">
-          <h2 className="text-sm font-bold text-[#ea7014]/60 uppercase tracking-widest self-start">
+          <h2 className="text-sm font-bold text-[#ea7014]/60 uppercase tracking-widest text-center">
             Vista previa en tiempo real
           </h2>
           <div className="shadow-2xl shadow-[#ea7014]/20 rounded-lg overflow-hidden w-full max-w-sm">

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { forwardRef } from "react";
+import QRCode from "react-qr-code";
 
 export interface GiftCardData {
   recipientName: string;
@@ -308,7 +309,7 @@ const GiftCard = forwardRef<HTMLDivElement, GiftCardProps>(
           </p>
         </div>
 
-        {/* Código de seguridad */}
+        {/* Código de seguridad + QR */}
         {securityCode && (
           <div
             style={{
@@ -316,21 +317,55 @@ const GiftCard = forwardRef<HTMLDivElement, GiftCardProps>(
               paddingTop: `${12 * s}px`,
               borderTop: "1px solid rgba(234,112,20,0.2)",
               display: "flex",
-              justifyContent: "center",
               alignItems: "center",
+              justifyContent: "center",
+              gap: `${12 * s}px`,
             }}
           >
-            <span
+            {/* QR Code */}
+            <div
               style={{
-                color: "rgba(234,112,20,0.75)",
-                fontFamily: "monospace",
-                fontWeight: 900,
-                letterSpacing: "0.1em",
-                fontSize: `${19 * s}px`,
+                background: "#fff",
+                padding: `${4 * s}px`,
+                borderRadius: `${4 * s}px`,
+                border: "1px solid rgba(234,112,20,0.15)",
+                lineHeight: 0,
               }}
             >
-              {securityCode}
-            </span>
+              <QRCode
+                value={securityCode}
+                size={Math.round(80 * s)}
+                fgColor={COLOR}
+                bgColor="#ffffff"
+                level="M"
+              />
+            </div>
+            {/* Code text */}
+            <div>
+              <div
+                style={{
+                  color: "rgba(234,112,20,0.5)",
+                  fontSize: `${10 * s}px`,
+                  fontWeight: 600,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  marginBottom: `${3 * s}px`,
+                }}
+              >
+                Código
+              </div>
+              <span
+                style={{
+                  color: "rgba(234,112,20,0.75)",
+                  fontFamily: "monospace",
+                  fontWeight: 900,
+                  letterSpacing: "0.1em",
+                  fontSize: `${19 * s}px`,
+                }}
+              >
+                {securityCode}
+              </span>
+            </div>
           </div>
         )}
       </div>

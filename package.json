@@ -13,6 +13,7 @@
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "html2canvas": "^1.4.1",
+    "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.0",
     "nanoid": "^5.1.6",
     "next": "16.1.6",
