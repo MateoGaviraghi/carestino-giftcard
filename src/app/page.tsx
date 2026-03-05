@@ -68,7 +68,6 @@ export default function Home() {
   const watchedValues = watch();
   const [securityCode, setSecurityCode] = useState<string>("");
   const [today, setToday] = useState<string>("");
-  const [showModal, setShowModal] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
@@ -253,7 +252,7 @@ export default function Home() {
     try {
       // 1. Guardar la gift card en la base de datos
       try {
-        await fetch("/api/giftcards", {
+        const dbRes = await fetch("/api/giftcards", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -264,9 +263,18 @@ export default function Home() {
             date: cardData.date,
           }),
         });
-        fetchCards();
+        if (!dbRes.ok) {
+          const errBody = await dbRes.json().catch(() => ({}));
+          console.error(
+            "Error guardando gift card (video):",
+            dbRes.status,
+            errBody,
+          );
+        } else {
+          fetchCards();
+        }
       } catch (dbErr) {
-        console.warn("No se pudo guardar en la base de datos:", dbErr);
+        console.error("No se pudo guardar en la base de datos (video):", dbErr);
       }
 
       // 2. Capture the gift card as an image
@@ -368,7 +376,7 @@ export default function Home() {
           </h2>
 
           <form
-            onSubmit={handleSubmit(() => setShowModal(true))}
+            onSubmit={handleSubmit(() => downloadPdf())}
             noValidate
             className="space-y-3"
           >
@@ -508,13 +516,6 @@ export default function Home() {
                 Identifica esta gift card de forma única.
               </p>
             </div>
-
-            <button
-              type="submit"
-              className="w-full bg-[#ea7014] hover:bg-[#d4620e] text-white font-black text-base uppercase tracking-wider py-3.5 rounded-xl transition-colors shadow-md shadow-[#ea7014]/30"
-            >
-              Previsualizar Gift Card
-            </button>
           </form>
         </section>
 
@@ -531,25 +532,35 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
             <button
               type="button"
-              onClick={() => handleSubmit(() => setShowModal(true))()}
-              className="flex-1 flex items-center justify-center gap-2 bg-[#ea7014] hover:bg-[#d4620e] text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
+              onClick={() => handleSubmit(() => downloadPdf())()}
+              disabled={isGeneratingPdf}
+              className="flex-1 flex items-center justify-center gap-2 bg-[#ea7014] hover:bg-[#d4620e] disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Descargar PDF
+              {isGeneratingPdf ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="shrink-0"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Descargar PDF
+                </>
+              )}
             </button>
 
             <button
@@ -586,8 +597,8 @@ export default function Home() {
           </div>
 
           <p className="text-xs text-gray-400 text-center max-w-xs -mt-2">
-            Clic en <strong>Descargar PDF</strong> para previsualizar y
-            descargar.
+            Completá el formulario y hacé clic para crear y descargar tu gift
+            card.
           </p>
         </section>
       </div>
@@ -600,122 +611,6 @@ export default function Home() {
         <GiftCard data={cardData} ref={pdfCardRef} nativeSize />
       </div>
 
-      {/* ══════════ MODAL ══════════ */}
-      {showModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={(e) => e.target === e.currentTarget && setShowModal(false)}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-145 w-full p-6 flex flex-col items-center gap-6">
-            <div className="flex items-center justify-between w-full">
-              <h3 className="text-lg font-black text-[#ea7014] uppercase tracking-wide">
-                Vista previa final
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors text-3xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="shadow-xl rounded-lg">
-              <GiftCard data={cardData} />
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 w-full">
-              {/* Descargar PDF */}
-              <button
-                onClick={downloadPdf}
-                disabled={isGeneratingPdf}
-                className="flex-1 flex items-center justify-center gap-2 bg-[#ea7014] hover:bg-[#d4620e] disabled:opacity-60 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-[#ea7014]/25"
-              >
-                {isGeneratingPdf ? (
-                  <>
-                    <svg
-                      className="animate-spin w-4 h-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="white"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="white"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    Generando...
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    Descargar PDF
-                  </>
-                )}
-              </button>
-
-              {/* Video WhatsApp */}
-              <button
-                onClick={downloadVideo}
-                disabled={isGeneratingVideo}
-                className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
-              >
-                {isGeneratingVideo ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {videoProgress}%
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polygon points="23 7 16 12 23 17 23 7" />
-                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                    </svg>
-                    Video WhatsApp
-                  </>
-                )}
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-400 text-center">
-              Código:{" "}
-              <strong className="text-[#ea7014] font-mono">
-                {securityCode}
-              </strong>
-              . Guardá este código antes de cerrar.
-            </p>
-          </div>
-        </div>
-      )}
       {/* ══════════ ADMIN DASHBOARD ══════════ */}
       {(() => {
         const filtered = cards.filter((c) => {

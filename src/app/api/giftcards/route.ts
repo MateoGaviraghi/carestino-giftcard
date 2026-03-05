@@ -28,8 +28,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const giftCard = await prisma.giftCard.create({
-      data: {
+    const giftCard = await prisma.giftCard.upsert({
+      where: { code },
+      update: {},
+      create: {
         code,
         recipientName,
         amount,
