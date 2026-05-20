@@ -1,0 +1,51 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    # Cada 3 dias a las 09:00 UTC (margen amplio vs el limite de ~7 dias de Supabase free).
+    - cron: '0 9 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Postgres via PostgREST (HEAD + count=exact)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_ANON_KEY:-}" ]]; then
+            echo "::error::Missing required secrets SUPABASE_URL and/or SUPABASE_ANON_KEY"
+            exit 1
+          fi
+
+          headers_file="$(mktemp)"
+
+          # HEAD con Prefer: count=exact obliga a Postgres a ejecutar un SELECT count(*)
+          # sobre la tabla -> hit real a la DB, no solo al API gateway.
+          # Sin body en la respuesta = cero riesgo de loguear datos.
+          http_code="$(curl -sS \
+            --head \
+            -D "${headers_file}" \
+            -o /dev/null \
+            -w '%{http_code}' \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Prefer: count=exact" \
+            "${SUPABASE_URL}/rest/v1/GiftCard?select=*&limit=1")"
+
+          echo "HTTP status: ${http_code}"
+          echo "--- response headers (safe subset) ---"
+          grep -iE '^(content-range|content-type|date|server):' "${headers_file}" || true
+          echo "--------------------------------------"
+
+          if [[ "${http_code}" -lt 200 || "${http_code}" -ge 300 ]]; then
+            echo "::error::Keep-alive failed (HTTP ${http_code}). Check RLS policies on GiftCard or SUPABASE_URL/ANON_KEY secrets."
+            exit 1
+          fi
+
+          echo "Keep-alive OK."
