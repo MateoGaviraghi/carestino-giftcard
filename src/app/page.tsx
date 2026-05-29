@@ -20,6 +20,8 @@ interface AdminCard {
   status: "ACTIVE" | "USED";
   createdAt: string;
   usedAt: string | null;
+  redeemedByName?: string | null;
+  redeemedByDni?: string | null;
 }
 
 const STATUS_LABEL: Record<AdminCard["status"], string> = {
@@ -82,7 +84,7 @@ export default function Home() {
   const fetchCards = useCallback(async () => {
     setCardsLoading(true);
     try {
-      const res = await fetch("/api/giftcards");
+      const res = await fetch("/api/giftcards", { cache: "no-store" });
       const json = await res.json();
       if (json.success) setCards(json.data);
     } finally {
@@ -96,12 +98,20 @@ export default function Home() {
   ) => {
     setActionLoading(code + status);
     try {
-      await fetch(`/api/giftcards/${code}`, {
+      const res = await fetch(`/api/giftcards/${code}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      await fetchCards();
+      const json = await res.json();
+      if (res.ok && json.success && json.data) {
+        // Actualiza la fila al instante con la respuesta del server (sin recargar).
+        setCards((prev) =>
+          prev.map((c) => (c.code === code ? { ...c, ...json.data } : c)),
+        );
+      } else {
+        await fetchCards();
+      }
     } finally {
       setActionLoading(null);
     }
@@ -768,6 +778,25 @@ export default function Home() {
                             </button>
                           </div>
                         </div>
+                        {card.status === "USED" && card.redeemedByName && (
+                          <div className="text-xs text-gray-600 leading-tight pt-1">
+                            <span className="text-gray-400">
+                              Retirado por:
+                            </span>{" "}
+                            <span className="font-semibold">
+                              {card.redeemedByName}
+                            </span>
+                            {card.redeemedByDni && (
+                              <>
+                                {" · "}
+                                <span className="text-gray-400">DNI:</span>{" "}
+                                <span className="font-semibold">
+                                  {card.redeemedByDni}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -832,6 +861,28 @@ export default function Home() {
                                   )}
                                 </p>
                               )}
+                              {card.status === "USED" &&
+                                card.redeemedByName && (
+                                  <p className="text-xs text-gray-600 mt-1 leading-tight">
+                                    <span className="text-gray-400">
+                                      Retirado por:
+                                    </span>{" "}
+                                    <span className="font-semibold">
+                                      {card.redeemedByName}
+                                    </span>
+                                    {card.redeemedByDni && (
+                                      <>
+                                        <br />
+                                        <span className="text-gray-400">
+                                          DNI:
+                                        </span>{" "}
+                                        <span className="font-semibold">
+                                          {card.redeemedByDni}
+                                        </span>
+                                      </>
+                                    )}
+                                  </p>
+                                )}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2 flex-wrap">

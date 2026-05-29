@@ -34,30 +34,19 @@ export async function PATCH(
     const { status, redeemedByName, redeemedByDni } = body;
 
     const isUsed = status === "USED";
-
-    if (isUsed) {
-      const name = typeof redeemedByName === "string" ? redeemedByName.trim() : "";
-      const dni = typeof redeemedByDni === "string" ? redeemedByDni.trim() : "";
-      if (!name || !dni) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Faltan datos del retiro (nombre y DNI son obligatorios).",
-          },
-          { status: 400 },
-        );
-      }
-    }
+    const name =
+      typeof redeemedByName === "string" ? redeemedByName.trim() : "";
+    const dni = typeof redeemedByDni === "string" ? redeemedByDni.trim() : "";
 
     const updated = await prisma.giftCard.update({
       where: { code },
       data: {
         status,
         usedAt: isUsed ? new Date() : null,
-        redeemedByName: isUsed
-          ? (redeemedByName as string).trim()
-          : null,
-        redeemedByDni: isUsed ? (redeemedByDni as string).trim() : null,
+        // Si viene de /scan trae nombre y DNI; si se marca desde el panel sin
+        // datos quedan null. Al reactivar se limpian siempre.
+        redeemedByName: isUsed ? name || null : null,
+        redeemedByDni: isUsed ? dni || null : null,
       },
     });
     return NextResponse.json({ success: true, data: updated });
