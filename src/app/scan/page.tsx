@@ -23,7 +23,6 @@ export default function ScanPage() {
   const [notFound, setNotFound] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionDone, setActionDone] = useState(false);
-  const [redeemModalOpen, setRedeemModalOpen] = useState(false);
   const [redeemName, setRedeemName] = useState("");
   const [redeemDni, setRedeemDni] = useState("");
   const [redeemError, setRedeemError] = useState<string | null>(null);
@@ -51,6 +50,9 @@ export default function ScanPage() {
     setCard(null);
     setNotFound(false);
     setActionDone(false);
+    setRedeemName("");
+    setRedeemDni("");
+    setRedeemError(null);
     setScanState("scanning");
 
     const { Html5Qrcode } = await import("html5-qrcode");
@@ -93,24 +95,12 @@ export default function ScanPage() {
     }
   };
 
-  const openRedeemModal = () => {
-    setRedeemName("");
-    setRedeemDni("");
-    setRedeemError(null);
-    setRedeemModalOpen(true);
-  };
-
-  const closeRedeemModal = () => {
-    if (actionLoading) return;
-    setRedeemModalOpen(false);
-  };
-
-  const handleConfirmRedeem = async () => {
+  const handleMarkUsed = async () => {
     if (!card) return;
     const name = redeemName.trim();
     const dni = redeemDni.trim();
     if (!name || !dni) {
-      setRedeemError("Completá nombre y DNI.");
+      setRedeemError("Completá nombre y DNI antes de marcar como utilizada.");
       return;
     }
     setRedeemError(null);
@@ -141,7 +131,6 @@ export default function ScanPage() {
           : c,
       );
       setActionDone(true);
-      setRedeemModalOpen(false);
     } catch {
       setRedeemError("Error de red. Intentá de nuevo.");
     } finally {
@@ -278,15 +267,57 @@ export default function ScanPage() {
                 <Row label="Código" value={card.code} mono />
               </div>
 
-              {/* Action: mark as used */}
+              {/* Datos del retiro — aparecen ANTES de marcar como usada */}
               {card.status === "ACTIVE" && !actionDone && (
-                <button
-                  onClick={openRedeemModal}
-                  disabled={actionLoading}
-                  className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-black text-base uppercase tracking-wider py-4 rounded-2xl shadow-lg transition-colors"
-                >
-                  ✓ Marcar como utilizada
-                </button>
+                <>
+                  <div className="w-full bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">⚠️</span>
+                      <p className="text-base font-black text-amber-700 uppercase tracking-wide">
+                        Retirado por:
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-amber-700/70 uppercase tracking-wider mb-1">
+                        Nombre y apellido
+                      </label>
+                      <input
+                        type="text"
+                        value={redeemName}
+                        onChange={(e) => setRedeemName(e.target.value)}
+                        className="w-full border-2 border-amber-300/60 focus:border-amber-500 outline-none rounded-xl px-4 py-3 text-sm font-semibold text-gray-800 bg-white"
+                        placeholder="Ej: Juan Pérez"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-amber-700/70 uppercase tracking-wider mb-1">
+                        DNI
+                      </label>
+                      <input
+                        type="text"
+                        value={redeemDni}
+                        onChange={(e) => setRedeemDni(e.target.value)}
+                        className="w-full border-2 border-amber-300/60 focus:border-amber-500 outline-none rounded-xl px-4 py-3 text-sm font-semibold text-gray-800 bg-white"
+                        placeholder="Ej: 30123456"
+                      />
+                    </div>
+                    {redeemError && (
+                      <p className="text-red-600 text-xs font-bold text-center">
+                        {redeemError}
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleMarkUsed}
+                    disabled={
+                      actionLoading || !redeemName.trim() || !redeemDni.trim()
+                    }
+                    className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-black text-base uppercase tracking-wider py-4 rounded-2xl shadow-lg transition-colors"
+                  >
+                    {actionLoading ? "Procesando..." : "✓ Marcar como utilizada"}
+                  </button>
+                </>
               )}
 
               {actionDone && (
@@ -322,82 +353,6 @@ export default function ScanPage() {
           >
             Reintentar
           </button>
-        </div>
-      )}
-
-      {/* MODAL: Retirado por */}
-      {redeemModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          onClick={closeRedeemModal}
-        >
-          <div
-            className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center mb-5">
-              <p className="text-3xl mb-1">📝</p>
-              <h2 className="text-xl font-black text-[#ea7014] uppercase tracking-wide">
-                Retirado por:
-              </h2>
-              <p className="text-xs text-gray-500 mt-1">
-                Completá los datos del cliente antes de confirmar.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-[#ea7014]/70 uppercase tracking-wider mb-1">
-                  Nombre y apellido
-                </label>
-                <input
-                  type="text"
-                  value={redeemName}
-                  onChange={(e) => setRedeemName(e.target.value)}
-                  autoFocus
-                  className="w-full border-2 border-[#ea7014]/20 focus:border-[#ea7014] outline-none rounded-xl px-4 py-3 text-sm font-semibold text-gray-800"
-                  placeholder="Ej: Juan Pérez"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#ea7014]/70 uppercase tracking-wider mb-1">
-                  DNI
-                </label>
-                <input
-                  type="text"
-                  value={redeemDni}
-                  onChange={(e) => setRedeemDni(e.target.value)}
-                  className="w-full border-2 border-[#ea7014]/20 focus:border-[#ea7014] outline-none rounded-xl px-4 py-3 text-sm font-semibold text-gray-800"
-                  placeholder="Ej: 30123456"
-                />
-              </div>
-            </div>
-
-            {redeemError && (
-              <p className="text-red-600 text-xs font-bold mt-3 text-center">
-                {redeemError}
-              </p>
-            )}
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={closeRedeemModal}
-                disabled={actionLoading}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:opacity-60 text-gray-700 font-black text-sm uppercase tracking-wider py-3 rounded-xl transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmRedeem}
-                disabled={
-                  actionLoading || !redeemName.trim() || !redeemDni.trim()
-                }
-                className="flex-1 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-black text-sm uppercase tracking-wider py-3 rounded-xl shadow transition-colors"
-              >
-                {actionLoading ? "Procesando..." : "Confirmar"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </main>
