@@ -34,6 +34,17 @@ const STATUS_COLOR: Record<AdminCard["status"], string> = {
   USED: "bg-red-100 text-red-600 border-red-200",
 };
 
+// Nombre del archivo descargado: CARESTINO-GIFT-CARD-NOMBRE-DEL-DESTINATARIO
+function buildFileName(recipientName: string, fallback: string): string {
+  const slug = (recipientName || "")
+    .normalize("NFD") // separa acentos; las marcas se vuelven guion abajo
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-") // todo lo no alfanumérico -> guion
+    .replace(/^-+|-+$/g, ""); // sin guiones al inicio/fin
+  return `CARESTINO-GIFT-CARD-${slug || fallback}`;
+}
+
 interface FormValues {
   recipientName: string;
   amount: string;
@@ -239,7 +250,9 @@ export default function Home() {
         format: [pdfW, pdfH],
       });
       pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
-      pdf.save(`giftcard-carestino-${securityCode}.pdf`);
+      pdf.save(
+        `${buildFileName(cardData.recipientName, securityCode)}.pdf`,
+      );
     } catch (err) {
       console.error("Error generando PDF:", err);
       alert("Ocurrió un error al generar el PDF. Intentá de nuevo.");
@@ -331,7 +344,7 @@ export default function Home() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `giftcard-carestino-${securityCode}.${ext}`;
+      a.download = `${buildFileName(cardData.recipientName, securityCode)}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
