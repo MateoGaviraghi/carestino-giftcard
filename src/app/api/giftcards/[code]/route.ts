@@ -31,13 +31,33 @@ export async function PATCH(
   try {
     const { code } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status, redeemedByName, redeemedByDni } = body;
+
+    const isUsed = status === "USED";
+
+    if (isUsed) {
+      const name = typeof redeemedByName === "string" ? redeemedByName.trim() : "";
+      const dni = typeof redeemedByDni === "string" ? redeemedByDni.trim() : "";
+      if (!name || !dni) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Faltan datos del retiro (nombre y DNI son obligatorios).",
+          },
+          { status: 400 },
+        );
+      }
+    }
 
     const updated = await prisma.giftCard.update({
       where: { code },
       data: {
         status,
-        usedAt: status === "USED" ? new Date() : null,
+        usedAt: isUsed ? new Date() : null,
+        redeemedByName: isUsed
+          ? (redeemedByName as string).trim()
+          : null,
+        redeemedByDni: isUsed ? (redeemedByDni as string).trim() : null,
       },
     });
     return NextResponse.json({ success: true, data: updated });

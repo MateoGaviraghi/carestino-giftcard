@@ -128,12 +128,32 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
                   </span>
                 </div>
                 {giftCard.status === "USED" && giftCard.usedAt && (
-                  <div className="flex justify-between items-center py-2">
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-gray-500 text-sm font-medium">
                       Utilizada el
                     </span>
                     <span className="font-bold text-red-600">
                       {new Date(giftCard.usedAt).toLocaleDateString("es-AR")}
+                    </span>
+                  </div>
+                )}
+                {giftCard.status === "USED" && giftCard.redeemedByName && (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-500 text-sm font-medium">
+                      Retirado por
+                    </span>
+                    <span className="font-bold text-gray-800 text-right">
+                      {giftCard.redeemedByName}
+                    </span>
+                  </div>
+                )}
+                {giftCard.status === "USED" && giftCard.redeemedByDni && (
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-500 text-sm font-medium">
+                      DNI
+                    </span>
+                    <span className="font-bold text-gray-800 font-mono">
+                      {giftCard.redeemedByDni}
                     </span>
                   </div>
                 )}

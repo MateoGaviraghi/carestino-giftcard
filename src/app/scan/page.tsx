@@ -11,6 +11,8 @@ interface CardResult {
   date: string;
   status: "ACTIVE" | "USED";
   usedAt: string | null;
+  redeemedByName?: string | null;
+  redeemedByDni?: string | null;
 }
 
 type ScanState = "idle" | "scanning" | "loading" | "result" | "error";
@@ -21,6 +23,10 @@ export default function ScanPage() {
   const [notFound, setNotFound] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionDone, setActionDone] = useState(false);
+  const [redeemModalOpen, setRedeemModalOpen] = useState(false);
+  const [redeemName, setRedeemName] = useState("");
+  const [redeemDni, setRedeemDni] = useState("");
+  const [redeemError, setRedeemError] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scannerRef = useRef<any | null>(null);
   const hasScanned = useRef(false);
@@ -87,17 +93,57 @@ export default function ScanPage() {
     }
   };
 
-  const handleMarkUsed = async () => {
+  const openRedeemModal = () => {
+    setRedeemName("");
+    setRedeemDni("");
+    setRedeemError(null);
+    setRedeemModalOpen(true);
+  };
+
+  const closeRedeemModal = () => {
+    if (actionLoading) return;
+    setRedeemModalOpen(false);
+  };
+
+  const handleConfirmRedeem = async () => {
     if (!card) return;
+    const name = redeemName.trim();
+    const dni = redeemDni.trim();
+    if (!name || !dni) {
+      setRedeemError("Completá nombre y DNI.");
+      return;
+    }
+    setRedeemError(null);
     setActionLoading(true);
     try {
-      await fetch(`/api/giftcards/${card.code}`, {
+      const res = await fetch(`/api/giftcards/${card.code}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "USED" }),
+        body: JSON.stringify({
+          status: "USED",
+          redeemedByName: name,
+          redeemedByDni: dni,
+        }),
       });
-      setCard((c) => (c ? { ...c, status: "USED" } : c));
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setRedeemError(json.error || "No se pudo marcar como utilizada.");
+        return;
+      }
+      setCard((c) =>
+        c
+          ? {
+              ...c,
+              status: "USED",
+              redeemedByName: name,
+              redeemedByDni: dni,
+            }
+          : c,
+      );
       setActionDone(true);
+      setRedeemModalOpen(false);
+    } catch {
+      setRedeemError("Error de red. Intentá de nuevo.");
     } finally {
       setActionLoading(false);
     }
@@ -235,11 +281,11 @@ export default function ScanPage() {
               {/* Action: mark as used */}
               {card.status === "ACTIVE" && !actionDone && (
                 <button
-                  onClick={handleMarkUsed}
+                  onClick={openRedeemModal}
                   disabled={actionLoading}
                   className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-black text-base uppercase tracking-wider py-4 rounded-2xl shadow-lg transition-colors"
                 >
-                  {actionLoading ? "Procesando..." : "✓ Marcar como utilizada"}
+                  ✓ Marcar como utilizada
                 </button>
               )}
 
@@ -276,6 +322,82 @@ export default function ScanPage() {
           >
             Reintentar
           </button>
+        </div>
+      )}
+
+      {/* MODAL: Retirado por */}
+      {redeemModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={closeRedeemModal}
+        >
+          <div
+            className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center mb-5">
+              <p className="text-3xl mb-1">📝</p>
+              <h2 className="text-xl font-black text-[#ea7014] uppercase tracking-wide">
+                Retirado por:
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Completá los datos del cliente antes de confirmar.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-[#ea7014]/70 uppercase tracking-wider mb-1">
+                  Nombre y apellido
+                </label>
+                <input
+                  type="text"
+                  value={redeemName}
+                  onChange={(e) => setRedeemName(e.target.value)}
+                  autoFocus
+                  className="w-full border-2 border-[#ea7014]/20 focus:border-[#ea7014] outline-none rounded-xl px-4 py-3 text-sm font-semibold text-gray-800"
+                  placeholder="Ej: Juan Pérez"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#ea7014]/70 uppercase tracking-wider mb-1">
+                  DNI
+                </label>
+                <input
+                  type="text"
+                  value={redeemDni}
+                  onChange={(e) => setRedeemDni(e.target.value)}
+                  className="w-full border-2 border-[#ea7014]/20 focus:border-[#ea7014] outline-none rounded-xl px-4 py-3 text-sm font-semibold text-gray-800"
+                  placeholder="Ej: 30123456"
+                />
+              </div>
+            </div>
+
+            {redeemError && (
+              <p className="text-red-600 text-xs font-bold mt-3 text-center">
+                {redeemError}
+              </p>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={closeRedeemModal}
+                disabled={actionLoading}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:opacity-60 text-gray-700 font-black text-sm uppercase tracking-wider py-3 rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmRedeem}
+                disabled={
+                  actionLoading || !redeemName.trim() || !redeemDni.trim()
+                }
+                className="flex-1 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-black text-sm uppercase tracking-wider py-3 rounded-xl shadow transition-colors"
+              >
+                {actionLoading ? "Procesando..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

@@ -17,6 +17,8 @@ model GiftCard {
   createdAt     DateTime       @default(now())
   usedAt        DateTime?
   notes         String?
+  redeemedByName String?
+  redeemedByDni  String?
 }
 
 enum GiftCardStatus {
