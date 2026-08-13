@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login"];
+// /verify es el destino del QR impreso en cada gift card: lo escanea el cliente,
+// que no tiene sesion. Si no estuviera aca, el gate lo mandaria a /login.
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/verify"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

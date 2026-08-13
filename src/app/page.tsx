@@ -53,6 +53,47 @@ interface FormValues {
   date: string;
 }
 
+// ── Cola de respaldo ────────────────────────────────────────────────────────
+// Si el guardado en la base falla, la gift card no se genera (ver downloadPdf),
+// pero los datos quedan acá para poder reintentar sin volver a tipearlos —
+// y sobreviven a que se cierre el navegador.
+const PENDING_KEY = "carestino:giftcards-pendientes";
+
+interface PendingCard {
+  code: string;
+  recipientName: string;
+  amount: string;
+  isProduct: boolean;
+  date: string;
+  failedAt: string;
+}
+
+function readPending(): PendingCard[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(PENDING_KEY);
+    return raw ? (JSON.parse(raw) as PendingCard[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePending(list: PendingCard[]) {
+  try {
+    window.localStorage.setItem(PENDING_KEY, JSON.stringify(list));
+  } catch {
+    // localStorage lleno o bloqueado: no hay nada que hacer acá
+  }
+}
+
+// Espera a que React haya pintado el cambio de estado antes de que html2canvas
+// capture la tarjeta (si el server asignó otro código, el DOM tiene que tenerlo).
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+}
+
 const INPUT_CLASS =
   "w-full border-2 border-[#ea7014]/40 rounded-lg px-4 py-3 text-gray-800 font-medium bg-white focus:outline-none focus:border-[#ea7014] focus:ring-2 focus:ring-[#ea7014]/20 transition placeholder-gray-400";
 
@@ -85,6 +126,15 @@ export default function Home() {
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
 
+  // Estado del guardado en base
+  const [dbStatus, setDbStatus] = useState<"checking" | "up" | "down">(
+    "checking",
+  );
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastIssued, setLastIssued] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingCard[]>([]);
+  const [retryingPending, setRetryingPending] = useState(false);
+
   // Admin state
   const [cards, setCards] = useState<AdminCard[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
@@ -102,6 +152,87 @@ export default function Home() {
       setCardsLoading(false);
     }
   }, []);
+
+  const checkDb = useCallback(async () => {
+    try {
+      const res = await fetch("/api/health", { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      setDbStatus(res.ok && json?.success ? "up" : "down");
+    } catch {
+      setDbStatus("down");
+    }
+  }, []);
+
+  /**
+   * Guarda la gift card en la base y devuelve el código con el que quedó
+   * realmente persistida. Si no puede CONFIRMAR la escritura, tira — y el que
+   * llama no debe generar ningún archivo: una gift card que no está en la base
+   * no se puede canjear después.
+   */
+  const persistGiftCard = useCallback(
+    async (card: Omit<PendingCard, "failedAt">): Promise<string> => {
+      let code = card.code;
+
+      // Cada 409 significa que ese código ya lo tiene otra gift card:
+      // probamos con uno nuevo en vez de pisarla en silencio.
+      for (let intento = 0; intento < 3; intento++) {
+        const res = await fetch("/api/giftcards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...card, code }),
+        });
+
+        const json = await res.json().catch(() => null);
+
+        if (res.ok && json?.success) return code;
+
+        if (res.status === 409) {
+          code = generateSecurityCode();
+          continue;
+        }
+
+        throw new Error(
+          json?.error === "Error al guardar la gift card"
+            ? "La base de datos no respondió."
+            : json?.error || `El servidor respondió ${res.status}.`,
+        );
+      }
+
+      throw new Error("No se pudo asignar un código único. Recargá la página.");
+    },
+    [],
+  );
+
+  // Guarda los datos para poder reintentar sin volver a tipearlos.
+  const queueFailedCard = useCallback(
+    (card: Omit<PendingCard, "failedAt">) => {
+      const entry: PendingCard = { ...card, failedAt: new Date().toISOString() };
+      const list = [...readPending().filter((p) => p.code !== entry.code), entry];
+      writePending(list);
+      setPending(list);
+    },
+    [],
+  );
+
+  const retryPending = useCallback(async () => {
+    setRetryingPending(true);
+    try {
+      const stillFailing: PendingCard[] = [];
+      for (const { failedAt, ...card } of readPending()) {
+        try {
+          await persistGiftCard(card);
+        } catch {
+          stillFailing.push({ ...card, failedAt });
+        }
+      }
+      writePending(stillFailing);
+      setPending(stillFailing);
+      await checkDb();
+      await fetchCards();
+    } finally {
+      setRetryingPending(false);
+    }
+  }, [persistGiftCard, checkDb, fetchCards]);
 
   const handleStatusChange = async (
     code: string,
@@ -157,6 +288,14 @@ export default function Home() {
     fetchCards();
   }, [fetchCards]);
 
+  // Vigila el estado de la base y recupera lo que haya quedado sin guardar.
+  useEffect(() => {
+    setPending(readPending());
+    checkDb();
+    const id = setInterval(checkDb, 60_000);
+    return () => clearInterval(id);
+  }, [checkDb]);
+
   const pdfCardRef = useRef<HTMLDivElement>(null);
 
   const cardData: GiftCardData = {
@@ -173,26 +312,42 @@ export default function Home() {
   const downloadPdf = useCallback(async () => {
     if (!pdfCardRef.current) return;
     setIsGeneratingPdf(true);
+    setSaveError(null);
+    setLastIssued(null);
     try {
-      // 1. Guardar la gift card en la base de datos
+      const payload = {
+        code: securityCode,
+        recipientName: cardData.recipientName,
+        amount: cardData.amount,
+        isProduct: cardData.isProduct ?? false,
+        date: cardData.date,
+      };
+
+      // 1. Guardar en la base ANTES de generar nada. Si la escritura no se puede
+      //    confirmar, no se descarga: una gift card que no está en la base no se
+      //    puede canjear, y el cliente se entera recién en el mostrador.
+      let confirmedCode: string;
       try {
-        await fetch("/api/giftcards", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: securityCode,
-            recipientName: cardData.recipientName,
-            amount: cardData.amount,
-            isProduct: cardData.isProduct ?? false,
-            date: cardData.date,
-          }),
-        });
-        // Refresh admin table immediately
-        fetchCards();
+        confirmedCode = await persistGiftCard(payload);
       } catch (dbErr) {
-        // No bloqueamos la descarga si falla el guardado
-        console.warn("No se pudo guardar en la base de datos:", dbErr);
+        console.error("No se pudo guardar la gift card:", dbErr);
+        queueFailedCard(payload);
+        setDbStatus("down");
+        setSaveError(
+          dbErr instanceof Error
+            ? dbErr.message
+            : "No se pudo guardar la gift card.",
+        );
+        return;
       }
+
+      // El server pudo asignar otro código por colisión: la tarjeta que
+      // capturamos tiene que mostrar el que realmente quedó guardado.
+      if (confirmedCode !== securityCode) {
+        setSecurityCode(confirmedCode);
+        await nextPaint();
+      }
+      fetchCards();
 
       // 2. Wait for images and fonts to fully load
       await new Promise((r) => setTimeout(r, 300));
@@ -251,8 +406,14 @@ export default function Home() {
       });
       pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
       pdf.save(
-        `${buildFileName(cardData.recipientName, securityCode)}.pdf`,
+        `${buildFileName(cardData.recipientName, confirmedCode)}.pdf`,
       );
+
+      // Emitida y guardada. La próxima gift card necesita un código nuevo: hasta
+      // ahora se generaba uno solo al abrir la página, así que dos tarjetas
+      // seguidas compartían código y la segunda nunca llegaba a la base.
+      setLastIssued(confirmedCode);
+      setSecurityCode(generateSecurityCode());
     } catch (err) {
       console.error("Error generando PDF:", err);
       alert("Ocurrió un error al generar el PDF. Intentá de nuevo.");
@@ -261,6 +422,8 @@ export default function Home() {
     }
   }, [
     fetchCards,
+    persistGiftCard,
+    queueFailedCard,
     securityCode,
     cardData.recipientName,
     cardData.amount,
@@ -272,33 +435,38 @@ export default function Home() {
     if (!pdfCardRef.current) return;
     setIsGeneratingVideo(true);
     setVideoProgress(0);
+    setSaveError(null);
+    setLastIssued(null);
     try {
-      // 1. Guardar la gift card en la base de datos
+      const payload = {
+        code: securityCode,
+        recipientName: cardData.recipientName,
+        amount: cardData.amount,
+        isProduct: cardData.isProduct ?? false,
+        date: cardData.date,
+      };
+
+      // 1. Guardar en la base ANTES de generar nada (mismo criterio que el PDF).
+      let confirmedCode: string;
       try {
-        const dbRes = await fetch("/api/giftcards", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: securityCode,
-            recipientName: cardData.recipientName,
-            amount: cardData.amount,
-            isProduct: cardData.isProduct ?? false,
-            date: cardData.date,
-          }),
-        });
-        if (!dbRes.ok) {
-          const errBody = await dbRes.json().catch(() => ({}));
-          console.error(
-            "Error guardando gift card (video):",
-            dbRes.status,
-            errBody,
-          );
-        } else {
-          fetchCards();
-        }
+        confirmedCode = await persistGiftCard(payload);
       } catch (dbErr) {
-        console.error("No se pudo guardar en la base de datos (video):", dbErr);
+        console.error("No se pudo guardar la gift card (video):", dbErr);
+        queueFailedCard(payload);
+        setDbStatus("down");
+        setSaveError(
+          dbErr instanceof Error
+            ? dbErr.message
+            : "No se pudo guardar la gift card.",
+        );
+        return;
       }
+
+      if (confirmedCode !== securityCode) {
+        setSecurityCode(confirmedCode);
+        await nextPaint();
+      }
+      fetchCards();
 
       // 2. Capture the gift card as an image
       await new Promise((r) => setTimeout(r, 300));
@@ -344,9 +512,12 @@ export default function Home() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${buildFileName(cardData.recipientName, securityCode)}.${ext}`;
+      a.download = `${buildFileName(cardData.recipientName, confirmedCode)}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
+
+      setLastIssued(confirmedCode);
+      setSecurityCode(generateSecurityCode());
     } catch (err) {
       console.error("Error generando video:", err);
       alert("Ocurrió un error al generar el video. Intentá de nuevo.");
@@ -356,6 +527,8 @@ export default function Home() {
     }
   }, [
     fetchCards,
+    persistGiftCard,
+    queueFailedCard,
     securityCode,
     cardData.recipientName,
     cardData.amount,
@@ -390,6 +563,53 @@ export default function Home() {
           </button>
         </div>
       </header>
+
+      {/* ── Base caída: avisar ANTES de que se carguen los datos ── */}
+      {dbStatus === "down" && (
+        <div className="max-w-5xl mx-auto mb-6 rounded-xl border-2 border-red-300 bg-red-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1">
+            <p className="font-black text-red-700 text-sm uppercase tracking-wide">
+              La base de datos no responde
+            </p>
+            <p className="text-red-600 text-sm mt-0.5">
+              No se pueden emitir gift cards hasta que vuelva: una gift card que
+              no queda registrada no se puede canjear después.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={checkDb}
+            className="bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+          >
+            Reintentar conexión
+          </button>
+        </div>
+      )}
+
+      {/* ── Gift cards que no llegaron a guardarse ── */}
+      {pending.length > 0 && (
+        <div className="max-w-5xl mx-auto mb-6 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-amber-700 text-sm uppercase tracking-wide">
+              {pending.length} gift card{pending.length > 1 ? "s" : ""} sin
+              guardar
+            </p>
+            <p className="text-amber-700/80 text-sm mt-0.5 break-words">
+              {pending
+                .map((p) => `${p.recipientName} (${p.code})`)
+                .join(" · ")}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={retryPending}
+            disabled={retryingPending}
+            className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold text-sm px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+          >
+            {retryingPending ? "Reintentando..." : "Reintentar guardado"}
+          </button>
+        </div>
+      )}
 
       <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
         {/* ══════════ FORMULARIO ══════════ */}
@@ -556,7 +776,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => handleSubmit(() => downloadPdf())()}
-              disabled={isGeneratingPdf}
+              disabled={isGeneratingPdf || dbStatus === "down"}
               className="flex-1 flex items-center justify-center gap-2 bg-[#ea7014] hover:bg-[#d4620e] disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
             >
               {isGeneratingPdf ? (
@@ -589,7 +809,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => handleSubmit(() => downloadVideo())()}
-              disabled={isGeneratingVideo}
+              disabled={isGeneratingVideo || dbStatus === "down"}
               className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
             >
               {isGeneratingVideo ? (
@@ -618,6 +838,29 @@ export default function Home() {
               )}
             </button>
           </div>
+
+          {saveError && (
+            <div className="w-full max-w-sm rounded-xl border-2 border-red-300 bg-red-50 p-3 -mt-2">
+              <p className="font-bold text-red-700 text-sm">
+                No se generó la gift card
+              </p>
+              <p className="text-red-600 text-xs mt-0.5">
+                {saveError} Los datos quedaron guardados para reintentar — no se
+                descargó nada para no entregar una gift card sin registrar.
+              </p>
+            </div>
+          )}
+
+          {lastIssued && !saveError && (
+            <div className="w-full max-w-sm rounded-xl border-2 border-green-300 bg-green-50 p-3 -mt-2">
+              <p className="font-bold text-green-700 text-sm">
+                Guardada en la base y descargada
+              </p>
+              <p className="text-green-700/80 text-xs mt-0.5 font-mono tracking-wider">
+                {lastIssued}
+              </p>
+            </div>
+          )}
 
           <p className="text-xs text-gray-400 text-center max-w-xs -mt-2">
             Completá el formulario y hacé clic para crear y descargar tu gift
