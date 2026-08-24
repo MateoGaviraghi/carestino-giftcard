@@ -5,7 +5,8 @@
 > and a source file disagree, **the source file wins** and this one is stale.
 > Do NOT invent conventions, file paths, APIs, or commands — if it is not here, not in a routed
 > file, and not verifiable in the code, say so instead of guessing.
-> Absorbed at `9ee818c` on 2026-08-13. Drift check: `git log --oneline 9ee818c..HEAD`
+> Absorbed at `9ee818c` on 2026-08-13, hand-updated through the Neon migration on 2026-08-24.
+> Drift check: `git log --oneline 9ee818c..HEAD`
 > — if that prints more than a handful of commits, treat §3-§5 as suspect and re-run /memorizar-proyecto.
 
 ## 1. What this is
@@ -27,7 +28,7 @@ user, no public signup.
 | Auth / route protection | `src/proxy.ts` | Next 16 proxy convention (not `middleware.ts`). Cookie `session` compared against `SESSION_SECRET`; public paths whitelist; matcher covers everything else. |
 | Env var names | `.env.local` (local only, gitignored) | `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `NEXT_PUBLIC_SITE_URL`. **No `.env.example` exists and none is to be created.** |
 | Stack versions, scripts, deps | `package.json` + `package-lock.json` | npm. Note: `lint` and `postinstall` are the only non-obvious scripts. |
-| Keeping the DB alive | `.github/workflows/supabase-keepalive.yml` | The only workflow. Daily cron + manual dispatch, 4 retries. Its inline comments explain the failure modes. |
+| Where the data lives | Neon project `carestino-giftcard` (`jolly-smoke-80453382`), org "Mateo", Postgres 17, `us-east-1`. Connection string in `.env.local` and in Vercel's env vars | Migrated off Supabase on 2026-08-24 (see §7). There are no workflows in this repo any more. |
 | What is happening right now | `git log --oneline -15`, `git status --short` | Branch, in-flight work, uncommitted tree. Always current — never mirrored here. |
 
 ## 3. Code map <!-- owned here -->
@@ -40,7 +41,7 @@ src/
 │   ├── verify/[code]/page.tsx 176 ln — PUBLIC verification page, the QR target
 │   ├── login/page.tsx        116 ln
 │   ├── api/auth/{login,logout}/route.ts
-│   ├── api/giftcards/route.ts          GET (findMany) · POST (upsert on code)
+│   ├── api/giftcards/route.ts          GET (findMany) · POST (create; 409 on code collision)
 │   └── api/giftcards/[code]/route.ts   GET (findUnique) · PATCH (update) · DELETE
 ├── components/GiftCard.tsx   378 ln — the card itself, forwardRef, inline styles
 ├── lib/{prisma,utils,generateVideo}.ts
@@ -48,7 +49,7 @@ src/
 ```
 Three structural facts the tree does not show:
 - **`/` is not a landing page.** It is the operator's generator *and* dashboard, and it is behind auth like everything else. `/admin` is a second, narrower view over the same data — the two overlap and are not a hierarchy.
-- **`verify/[code]/page.tsx` is the only server component and the only public route** (whitelisted implicitly? no — it is *not* in `PUBLIC_PATHS`, see §7). It queries Prisma directly instead of going through `/api`.
+- **`verify/[code]/page.tsx` is the only server component and the only public route** (it is in `PUBLIC_PATHS`, see §7). It queries Prisma directly instead of going through `/api`.
 - **No shared UI layer.** No `components/ui`, no index barrels, no `cn()`. `GiftCard.tsx` is the only reusable component; every page writes its own Tailwind.
 
 ## 4. Conventions inferred from the code <!-- owned here -->
@@ -61,7 +62,7 @@ Three structural facts the tree does not show:
 - **Styling is inline Tailwind with literal hex** — `bg-[#f8f4ef]`, `text-[#ea7014]`, `border-[#ea7014]/30`. The CSS vars in `globals.css` exist but pages mostly bypass them. `GiftCard.tsx` is the exception: it uses **React `style` objects, not Tailwind**, because html2canvas/WebCodecs need computed inline styles.
 - **String state machines** drive UI trees: `"idle" | "scanning" | "loading" | "result" | "error"`.
 - **Destructive actions use native `confirm()`**; loading is disambiguated with `setActionLoading(code + action)`.
-- **Comments are sparse and Spanish**, only where logic is non-obvious (JSDoc on the two `lib/utils.ts` helpers, inline notes in the keepalive workflow).
+- **Comments are sparse and Spanish**, only where logic is non-obvious (JSDoc on the two `lib/utils.ts` helpers, the `notes` explaining each guard in `api/giftcards/route.ts`).
 - **No tests exist.** There is no test runner installed; do not assume one.
 
 ## 5. Where the docs and the code disagree <!-- owned here, highest value -->
@@ -90,7 +91,8 @@ Schema changes: edit `prisma/schema.prisma`, then `npx prisma db push` + `npx pr
 - **There are no migrations.** `prisma/migrations/` does not exist even though `prisma.config.ts` points at it, so schema history has been pushed, not migrated. Running `npx prisma migrate dev` on the production DB would try to baseline it — confirm with Mateo before any `migrate` command.
 - **Issuing must never outrun the DB write.** `POST /api/giftcards` uses `create`, not `upsert`: same code + same data → `200` (idempotent retry), same code + different data → `409 CODE_COLLISION`. `src/app/page.tsx` refuses to generate the PDF/MP4 until it has a confirmed code, queues failed attempts in `localStorage`, and regenerates the security code after each issue. Undoing any of that brings back gift cards that exist on paper but not in the database — read the `notes` on `CARE-QJM5-NJ6Y` for what that cost.
 - **`/verify` is in `PUBLIC_PATHS`** (`src/proxy.ts`) because it is the QR target and the customer scanning it has no session. Do not "tighten" the auth gate by removing it.
-- **Supabase free pauses after ~7 days idle.** The daily keepalive absorbs up to 6 consecutive runner failures. It needs `SUPABASE_URL` + `SUPABASE_ANON_KEY` as repo secrets and depends on RLS letting an anon `HEAD` on `GiftCard` through — an RLS change silently breaks it. This project's Supabase account is **not** the one the Supabase MCP is connected to.
+- **The database moved off Supabase on 2026-08-24, and the reason matters.** Supabase free paused the project after ~7 days idle and needed a MANUAL restore from its dashboard. A daily GitHub Action kept it warm until GitHub auto-disabled the schedule (`disabled_inactivity`) after 60 days without a push to the repo — the last push was 2026-06-07, the keepalive died 2026-08-07, the project paused about a week later, and nobody noticed until a customer could not redeem. Neon suspends the compute instead and **wakes itself on the next connection**, so no keepalive exists any more. Do not add one back.
+- **Two other Neon projects are named after this client and are NOT this app**: `carestino-santafe-prod` (`spring-math-52167931`, Vercel org, live 24/7) and `carestino-santafe` (`dawn-resonance-79271674`) belong to a separate sales/register system (`sales`, `expenses`, `withdrawals`). Never point this app at them.
 - **Video generation is browser-only** (WebCodecs). No fallback for unsupported browsers; it will simply fail.
 - **`GiftCard.tsx` renders at a fixed 480px native / 380px preview with a `s = 0.79` scale factor.** Editing spacing there changes the exported PDF and MP4, not just the screen — check all three outputs after touching it.
 - **`src/app/page.tsx` is 952 lines** and owns generation, listing, download naming (`buildFileName` → `CARESTINO-GIFT-CARD-{DESTINATARIO}`) and deletion. Changes there ripple wide.
