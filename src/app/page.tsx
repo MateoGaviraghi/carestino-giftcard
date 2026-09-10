@@ -154,13 +154,24 @@ export default function Home() {
   }, []);
 
   const checkDb = useCallback(async () => {
-    try {
-      const res = await fetch("/api/health", { cache: "no-store" });
-      const json = await res.json().catch(() => null);
-      setDbStatus(res.ok && json?.success ? "up" : "down");
-    } catch {
-      setDbStatus("down");
+    // Neon suspende el compute cuando nadie lo usa; el primer ping despues de
+    // unos dias lo despierta y puede tardar ~8s. Reintentamos antes de dar la
+    // base por caida: marcarla caida al primer fallo dejaba el sistema
+    // paralizado mientras la base simplemente estaba despertando.
+    for (let intento = 1; intento <= 3; intento++) {
+      try {
+        const res = await fetch("/api/health", { cache: "no-store" });
+        const json = await res.json().catch(() => null);
+        if (res.ok && json?.success) {
+          setDbStatus("up");
+          return;
+        }
+      } catch {
+        // sin red, o la funcion se corto: se reintenta abajo
+      }
+      if (intento < 3) await new Promise((r) => setTimeout(r, 2000));
     }
+    setDbStatus("down");
   }, []);
 
   /**
@@ -564,22 +575,23 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── Base caída: avisar ANTES de que se carguen los datos ── */}
+      {/* ── La base no respondió al chequeo: avisar, sin bloquear la emisión ── */}
       {dbStatus === "down" && (
-        <div className="max-w-5xl mx-auto mb-6 rounded-xl border-2 border-red-300 bg-red-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="max-w-5xl mx-auto mb-6 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1">
-            <p className="font-black text-red-700 text-sm uppercase tracking-wide">
-              La base de datos no responde
+            <p className="font-black text-amber-700 text-sm uppercase tracking-wide">
+              La base está tardando en responder
             </p>
-            <p className="text-red-600 text-sm mt-0.5">
-              No se pueden emitir gift cards hasta que vuelva: una gift card que
-              no queda registrada no se puede canjear después.
+            <p className="text-amber-700/80 text-sm mt-0.5">
+              Podés emitir igual: si el guardado no se confirma, la gift card no
+              se descarga y te avisa. La base se despierta sola y el primer
+              intento del día puede tardar unos segundos.
             </p>
           </div>
           <button
             type="button"
             onClick={checkDb}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+            className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
           >
             Reintentar conexión
           </button>
@@ -776,7 +788,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => handleSubmit(() => downloadPdf())()}
-              disabled={isGeneratingPdf || dbStatus === "down"}
+              disabled={isGeneratingPdf}
               className="flex-1 flex items-center justify-center gap-2 bg-[#ea7014] hover:bg-[#d4620e] disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
             >
               {isGeneratingPdf ? (
@@ -809,7 +821,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => handleSubmit(() => downloadVideo())()}
-              disabled={isGeneratingVideo || dbStatus === "down"}
+              disabled={isGeneratingVideo}
               className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
             >
               {isGeneratingVideo ? (
