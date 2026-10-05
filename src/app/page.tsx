@@ -22,7 +22,17 @@ interface AdminCard {
   usedAt: string | null;
   redeemedByName?: string | null;
   redeemedByDni?: string | null;
+  paymentMethod?: PaymentMethod | null;
 }
+
+// Medio de pago: solo lo ve el admin, nunca se imprime en la gift card.
+type PaymentMethod = "CASH" | "TRANSFER" | "CARD";
+
+const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  CASH: "Efectivo",
+  TRANSFER: "Transferencia",
+  CARD: "Tarjeta",
+};
 
 const STATUS_LABEL: Record<AdminCard["status"], string> = {
   ACTIVE: "Activa",
@@ -51,6 +61,7 @@ interface FormValues {
   isProduct: string; // radio inputs always return strings
   productDescription: string;
   date: string;
+  paymentMethod: PaymentMethod | "";
 }
 
 // ── Cola de respaldo ────────────────────────────────────────────────────────
@@ -65,6 +76,7 @@ interface PendingCard {
   amount: string;
   isProduct: boolean;
   date: string;
+  paymentMethod: PaymentMethod;
   failedAt: string;
 }
 
@@ -116,6 +128,7 @@ export default function Home() {
       isProduct: "false",
       productDescription: "",
       date: "",
+      paymentMethod: "",
     },
   });
 
@@ -332,6 +345,7 @@ export default function Home() {
         amount: cardData.amount,
         isProduct: cardData.isProduct ?? false,
         date: cardData.date,
+        paymentMethod: watchedValues.paymentMethod as PaymentMethod,
       };
 
       // 1. Guardar en la base ANTES de generar nada. Si la escritura no se puede
@@ -440,6 +454,7 @@ export default function Home() {
     cardData.amount,
     cardData.isProduct,
     cardData.date,
+    watchedValues.paymentMethod,
   ]);
 
   const downloadVideo = useCallback(async () => {
@@ -455,6 +470,7 @@ export default function Home() {
         amount: cardData.amount,
         isProduct: cardData.isProduct ?? false,
         date: cardData.date,
+        paymentMethod: watchedValues.paymentMethod as PaymentMethod,
       };
 
       // 1. Guardar en la base ANTES de generar nada (mismo criterio que el PDF).
@@ -545,6 +561,7 @@ export default function Home() {
     cardData.amount,
     cardData.isProduct,
     cardData.date,
+    watchedValues.paymentMethod,
   ]);
 
   return (
@@ -755,6 +772,43 @@ export default function Home() {
               {errors.date && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.date.message}
+                </p>
+              )}
+            </div>
+
+            {/* Medio de pago — solo para el admin, no va en la gift card */}
+            <div>
+              <label className={LABEL_CLASS}>Medio de pago *</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(PAYMENT_LABEL) as PaymentMethod[]).map((m) => {
+                  const selected = watchedValues.paymentMethod === m;
+                  return (
+                    <label key={m} className="cursor-pointer">
+                      <input
+                        type="radio"
+                        {...register("paymentMethod", {
+                          required: "Elegí cómo pagó",
+                        })}
+                        value={m}
+                        className="sr-only peer"
+                      />
+                      <div
+                        className={`flex items-center justify-center gap-1.5 rounded-lg border-2 px-2 py-3 text-center text-sm font-bold transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#ea7014]/40 ${
+                          selected
+                            ? "border-[#ea7014] bg-[#ea7014] text-white shadow-md"
+                            : "border-gray-300 bg-white text-gray-600 hover:border-[#ea7014]/60 hover:text-[#ea7014]"
+                        }`}
+                      >
+                        {selected && <span aria-hidden>✓</span>}
+                        {PAYMENT_LABEL[m]}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              {errors.paymentMethod && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.paymentMethod.message}
                 </p>
               )}
             </div>
@@ -1011,6 +1065,10 @@ export default function Home() {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-400">
                             {card.date}
+                            {" · "}
+                            {card.paymentMethod
+                              ? PAYMENT_LABEL[card.paymentMethod]
+                              : "—"}
                           </span>
                           <div className="flex items-center gap-2">
                             {card.status !== "USED" && (
@@ -1078,6 +1136,7 @@ export default function Home() {
                             "Destinatario",
                             "Monto / Producto",
                             "Fecha",
+                            "Pago",
                             "Estado",
                             "Acciones",
                           ].map((h) => (
@@ -1115,6 +1174,11 @@ export default function Home() {
                             </td>
                             <td className="px-4 py-3 text-gray-600">
                               {card.date}
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {card.paymentMethod
+                                ? PAYMENT_LABEL[card.paymentMethod]
+                                : "—"}
                             </td>
                             <td className="px-4 py-3">
                               <span

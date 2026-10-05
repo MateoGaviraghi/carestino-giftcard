@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+// Solo para el admin: nunca se imprime en la gift card.
+const PAYMENT_METHODS = ["CASH", "TRANSFER", "CARD"];
+
 export async function GET() {
   try {
     const cards = await prisma.giftCard.findMany({
@@ -19,11 +22,18 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { code, recipientName, amount, isProduct, date } = body;
+    const { code, recipientName, amount, isProduct, date, paymentMethod } = body;
 
     if (!code || !recipientName || !amount || !date) {
       return NextResponse.json(
         { success: false, error: "Faltan campos obligatorios" },
+        { status: 400 },
+      );
+    }
+
+    if (!PAYMENT_METHODS.includes(paymentMethod)) {
+      return NextResponse.json(
+        { success: false, error: "Medio de pago inválido" },
         { status: 400 },
       );
     }
@@ -36,6 +46,7 @@ export async function POST(request: NextRequest) {
           amount,
           isProduct: isProduct ?? false,
           date,
+          paymentMethod,
         },
       });
 
@@ -53,7 +64,8 @@ export async function POST(request: NextRequest) {
         existing.recipientName === recipientName &&
         existing.amount === amount &&
         existing.isProduct === (isProduct ?? false) &&
-        existing.date === date;
+        existing.date === date &&
+        existing.paymentMethod === paymentMethod;
 
       if (sameCard) {
         return NextResponse.json({ success: true, data: existing }, { status: 200 });

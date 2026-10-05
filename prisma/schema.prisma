@@ -19,6 +19,13 @@ model GiftCard {
   notes         String?
   redeemedByName String?
   redeemedByDni  String?
+  paymentMethod  PaymentMethod?
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CARD
 }
 
 enum GiftCardStatus {
