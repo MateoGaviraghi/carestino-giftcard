@@ -5,8 +5,8 @@
 > and a source file disagree, **the source file wins** and this one is stale.
 > Do NOT invent conventions, file paths, APIs, or commands — if it is not here, not in a routed
 > file, and not verifiable in the code, say so instead of guessing.
-> Absorbed at `9ee818c` on 2026-08-13, hand-updated through the Neon migration on 2026-08-24.
-> Drift check: `git log --oneline 9ee818c..HEAD`
+> Absorbed at `8fa3d25` on 2026-10-05.
+> Drift check: `git log --oneline 8fa3d25..HEAD`
 > — if that prints more than a handful of commits, treat §3-§5 as suspect and re-run /memorizar-proyecto.
 
 ## 1. What this is
@@ -21,11 +21,12 @@ user, no public signup.
 | Ask about | Open | What it holds |
 |---|---|---|
 | **Why anything is the way it is** | **There is no decision log in this repo.** Nearest thing: `git log` (messages are descriptive, Spanish, conventional-commit prefixed) | The *why* is only in commit messages and in this file's §5. `FASES_IMPLEMENTACION.md` is NOT a log — it is the original 2026 plan, largely superseded (see §5). If a decision gets reversed, there is nowhere to record it today. |
-| Original brief / product intent | `FASES_IMPLEMENTACION.md` (239 lines) | The 7-phase plan, the options evaluated for video, and 4 "decisiones pendientes". **Read it as history, not as spec** — most of it was decided differently. §5 lists every divergence. |
+| Original brief / product intent | `FASES_IMPLEMENTACION.md` (238 lines) | The 7-phase plan, the options evaluated for video, and 4 "decisiones pendientes". **Read it as history, not as spec** — most of it was decided differently. §5 lists every divergence. |
 | Domain content shown on the card | `src/components/GiftCard.tsx` | Phone, address, terms, brand color/font constants, and the exact card geometry. Hardcoded there, not in config. |
-| Design tokens, palette, type | `src/app/globals.css` (28 lines) + `src/app/layout.tsx` | CSS vars for background/foreground/brand orange/card bg, Montserrat mounted as `--font-montserrat`, Tailwind v4 via `@import "tailwindcss"` + `@theme inline`. |
+| Design tokens, palette, type | `src/app/globals.css` (27 lines) + `src/app/layout.tsx` | CSS vars for background/foreground/brand orange/card bg, Montserrat mounted as `--font-montserrat`, Tailwind v4 via `@import "tailwindcss"` + `@theme inline`. |
 | DB schema and enum | `prisma/schema.prisma` + `prisma.config.ts` | The single `GiftCard` model and `GiftCardStatus`. `prisma.config.ts` declares a `prisma/migrations` path that **does not exist** (see §7). |
-| Auth / route protection | `src/proxy.ts` | Next 16 proxy convention (not `middleware.ts`). Cookie `session` compared against `SESSION_SECRET`; public paths whitelist; matcher covers everything else. |
+| Auth / route protection | `src/proxy.ts` | Next 16 proxy convention (not `middleware.ts`). Cookie `session` compared against `SESSION_SECRET`; `PUBLIC_PATHS` whitelist; matcher covers everything else. |
+| Dev server for the browser preview | `.claude/launch.json` (untracked) | One config, `carestino-giftcard` → `npm run dev` on port 3000. |
 | Env var names | `.env.local` (local only, gitignored) | `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `NEXT_PUBLIC_SITE_URL`. **No `.env.example` exists and none is to be created.** |
 | Stack versions, scripts, deps | `package.json` + `package-lock.json` | npm. Note: `lint` and `postinstall` are the only non-obvious scripts. |
 | Where the data lives | Neon project `carestino-giftcard` (`jolly-smoke-80453382`), org "Mateo", Postgres 17, `us-east-1`. Connection string in `.env.local` and in Vercel's env vars | Migrated off Supabase on 2026-08-24 (see §7). There are no workflows in this repo any more. |
@@ -35,7 +36,8 @@ user, no public signup.
 ```
 src/
 ├── app/
-│   ├── page.tsx              952 ln — THE app: form + live preview + PDF/MP4 download + card list + delete
+│   ├── page.tsx             1207 ln — THE app: form + live preview + PDF/MP4 download + card list + delete
+│   │                                  + amber DB-status banner + "sin guardar" pending queue
 │   ├── admin/page.tsx        261 ln — read-only-ish table: filters, search, mark as used
 │   ├── scan/page.tsx         383 ln — html5-qrcode camera flow, redeem with name + DNI
 │   ├── verify/[code]/page.tsx 176 ln — PUBLIC verification page, the QR target
@@ -43,8 +45,9 @@ src/
 │   ├── api/auth/{login,logout}/route.ts
 │   ├── api/giftcards/route.ts          GET (findMany) · POST (create; 409 on code collision)
 │   └── api/giftcards/[code]/route.ts   GET (findUnique) · PATCH (update) · DELETE
+│   └── api/health/route.ts             GET `SELECT 1`, 2 tries, maxDuration 30, 503 when down
 ├── components/GiftCard.tsx   378 ln — the card itself, forwardRef, inline styles
-├── lib/{prisma,utils,generateVideo}.ts
+├── lib/{prisma,utils,generateVideo}.ts   prisma.ts = PrismaClient over @prisma/adapter-pg
 └── proxy.ts                  auth gate
 ```
 Three structural facts the tree does not show:
@@ -92,10 +95,12 @@ Schema changes: edit `prisma/schema.prisma`, then `npx prisma db push` + `npx pr
 - **Issuing must never outrun the DB write.** `POST /api/giftcards` uses `create`, not `upsert`: same code + same data → `200` (idempotent retry), same code + different data → `409 CODE_COLLISION`. `src/app/page.tsx` refuses to generate the PDF/MP4 until it has a confirmed code, queues failed attempts in `localStorage`, and regenerates the security code after each issue. Undoing any of that brings back gift cards that exist on paper but not in the database — read the `notes` on `CARE-QJM5-NJ6Y` for what that cost.
 - **`/verify` is in `PUBLIC_PATHS`** (`src/proxy.ts`) because it is the QR target and the customer scanning it has no session. Do not "tighten" the auth gate by removing it.
 - **The database moved off Supabase on 2026-08-24, and the reason matters.** Supabase free paused the project after ~7 days idle and needed a MANUAL restore from its dashboard. A daily GitHub Action kept it warm until GitHub auto-disabled the schedule (`disabled_inactivity`) after 60 days without a push to the repo — the last push was 2026-06-07, the keepalive died 2026-08-07, the project paused about a week later, and nobody noticed until a customer could not redeem. Neon suspends the compute instead and **wakes itself on the next connection**, so no keepalive exists any more. Do not add one back.
+- **The health check is a warning, never a gate** (`8fa3d25`). Neon's first connection after days idle takes ~8s to wake the compute (measured 7955ms). The old check declared the DB down on the first failure and disabled the issue buttons, so the system locked itself while the DB was merely waking — on 2026-09-10 the operator saw "LA BASE DE DATOS NO RESPONDE" with a healthy DB. Now `/api/health` tries twice (1.5s apart, `maxDuration = 30`), `checkDb` in `page.tsx` tries 3× (2s apart), and `dbStatus === "down"` only renders an amber banner. The real protection is `persistGiftCard`. Do not make the banner block issuing again.
+- **`/api/health` is behind auth** — not in `PUBLIC_PATHS`; it only serves the logged-in generator screen.
 - **Two other Neon projects are named after this client and are NOT this app**: `carestino-santafe-prod` (`spring-math-52167931`, Vercel org, live 24/7) and `carestino-santafe` (`dawn-resonance-79271674`) belong to a separate sales/register system (`sales`, `expenses`, `withdrawals`). Never point this app at them.
 - **Video generation is browser-only** (WebCodecs). No fallback for unsupported browsers; it will simply fail.
 - **`GiftCard.tsx` renders at a fixed 480px native / 380px preview with a `s = 0.79` scale factor.** Editing spacing there changes the exported PDF and MP4, not just the screen — check all three outputs after touching it.
-- **`src/app/page.tsx` is 952 lines** and owns generation, listing, download naming (`buildFileName` → `CARESTINO-GIFT-CARD-{DESTINATARIO}`) and deletion. Changes there ripple wide.
+- **`src/app/page.tsx` is 1207 lines** and owns generation, listing, download naming (`buildFileName` → `CARESTINO-GIFT-CARD-{DESTINATARIO}`) and deletion. Changes there ripple wide.
 - **Never create `.env.example`** in this repo (standing rule from Mateo's global instructions).
 
 ## Manual notes
