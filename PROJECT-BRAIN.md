@@ -20,7 +20,8 @@ user, no public signup.
 
 | Ask about | Open | What it holds |
 |---|---|---|
-| **Why anything is the way it is** | **There is no decision log in this repo.** Nearest thing: `git log` (messages are descriptive, Spanish, conventional-commit prefixed) | The *why* is only in commit messages and in this file's §5. `FASES_IMPLEMENTACION.md` is NOT a log — it is the original 2026 plan, largely superseded (see §5). If a decision gets reversed, there is nowhere to record it today. |
+| **Why anything is the way it is** | `MEMORY.md` (since 2026-10-05: `D-`, `G-`, `TD-`, `OQ-` entries) + `git log` for everything earlier (messages are descriptive, Spanish, conventional-commit prefixed) | Decisions before 2026-10-05 live only in commit messages and in this file's §5/§7. **Read `MEMORY.md` IN FULL before touching an area it covers.** `FASES_IMPLEMENTACION.md` is NOT a log — it is the original 2026 plan, largely superseded (see §5). |
+| Session history and current state | `WORKLOG.md` | ESTADO (overwritten each `/cerrar`) + REGISTRO (append-only, one entry per chat). |
 | Original brief / product intent | `FASES_IMPLEMENTACION.md` (238 lines) | The 7-phase plan, the options evaluated for video, and 4 "decisiones pendientes". **Read it as history, not as spec** — most of it was decided differently. §5 lists every divergence. |
 | Domain content shown on the card | `src/components/GiftCard.tsx` | Phone, address, terms, brand color/font constants, and the exact card geometry. Hardcoded there, not in config. |
 | Design tokens, palette, type | `src/app/globals.css` (27 lines) + `src/app/layout.tsx` | CSS vars for background/foreground/brand orange/card bg, Montserrat mounted as `--font-montserrat`, Tailwind v4 via `@import "tailwindcss"` + `@theme inline`. |
