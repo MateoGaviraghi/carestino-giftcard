@@ -10,17 +10,39 @@ Decisiones, gotchas, deuda técnica y preguntas abiertas van en `MEMORY.md`. El 
 
 | Campo | Valor |
 |---|---|
-| Tarea actual | Medio de pago por gift card (Efectivo / Transferencia / Tarjeta), solo visible para el admin |
-| Status real | **Terminada, commiteada y pusheada** a `main` en `bec0853`. El deploy de Vercel que dispara el push **no se verificó**. |
-| Último chat | 2026-10-05: `/memorizar-proyecto` + feature de medio de pago + `/cerrar` |
-| Espera de Mateo | Confirmar que producción (Vercel) desplegó `bec0853` y que se puede emitir una gift card real eligiendo el medio de pago. Decidir OQ-001 y OQ-002 (`MEMORY.md`). |
+| Tarea actual | Incidente del 2026-10-30: la base Neon se bloqueó por la cuota del plan gratis. Resuelto. |
+| Status real | Mateo pagó Neon el 30/10 y la base volvió (31 gift cards, ninguna perdida). El polling de 60 s se eliminó y el historial ahora muestra el error si la base no responde; está commiteado y pusheado junto con este registro. El deploy de Vercel **no se verificó**. |
+| Último chat | 2026-10-30: incidente de Neon + arreglo del polling |
+| Espera de Mateo | Que el local emita desde la app la gift card de Vera Forti Molinari (peluche saltarín unicornio rosa, tarjeta, 30/10): **no se emitió en este chat**. Decidir OQ-001 y OQ-002 (`MEMORY.md`). |
 | Espera de terceros | Nada |
-| Próxima acción | Verificar el deploy en producción. Si Mateo lo pide, agregar la columna "Pago" a la tabla de `/admin` (OQ-001). |
-| Qué no se toca | `src/components/GiftCard.tsx` no recibe el medio de pago: es dato interno y no va en la tarjeta, el PDF ni el MP4 (D-001). `PUBLIC_PATHS` en `src/proxy.ts` sigue incluyendo `/verify`. No se crea `.env.example`. |
+| Próxima acción | A fin de noviembre, mirar el consumo de Neon (`active_time_seconds` del proyecto `jolly-smoke-80453382`): debería ser una fracción chica de las ~441 h de octubre. |
+| Qué no se toca | Nada consulta la base en bucle (D-002). `src/components/GiftCard.tsx` no recibe el medio de pago (D-001). `PUBLIC_PATHS` en `src/proxy.ts` sigue incluyendo `/verify`. No se crea `.env.example`. |
 
 ---
 
 ## REGISTRO
+
+### 2026-10-30 — Incidente: Neon sin cuota, polling eliminado
+
+**Pedido (literal):** "que pasa que aprece sin guft card esta intentadno hacer y no les deja porque hay tatnos problemas ?" · "es que necesita con urgencia ahora" · "necesito que ahgamso una solucion definitiva" · "sacá el chequeo y borrá la temporal debemos dejar algo que sea permaente no quieroq eu me vuelva a pregutnar nunca mas nada que nada impida nada"
+
+**Hecho:**
+- **Diagnóstico:** Neon respondía `Your account or project has exceeded the quota`. Según `describe_project`, en octubre hubo 397.312 s de cómputo (≈110 CU-h, con un límite de 100) y ≈441 h con la base prendida; la última actividad fue el 25/10. Los otros proyectos de la org seguían funcionando, así que el límite es por proyecto.
+- **Base:** Mateo pagó Neon. Verificado: la base responde, con 31 gift cards; la más reciente es del 22/10.
+- **Base temporal:** se creó el proyecto Neon `carestino-giftcard-temporal` (`noisy-silence-71204470`) para emitir mientras tanto. Se borró sin usarse cuando Mateo pagó.
+- **`src/app/page.tsx`:**
+  - Se quitó `setInterval(checkDb, 60_000)`. Ahora `checkDb` y `fetchCards` corren al montar la pantalla y en `visibilitychange` cuando la pestaña vuelve a estar visible, con un mínimo de 5 min entre chequeos.
+  - Nuevo estado `cardsError`: si `/api/giftcards` falla, el historial dice "No se pudo cargar el historial: la base de datos no respondió. Probá con Actualizar." en lugar de "No hay gift cards".
+- **Registro:** `MEMORY.md` suma D-002 y G-004. `PROJECT-BRAIN.md` §7 suma el landmine "Nothing may query the DB on a timer".
+- **Config local:** en `.claude/launch.json` (sin trackear) quedó solo la config `carestino-giftcard` con `autoPort`. Se borraron del scratchpad los archivos temporales con la URL de la base temporal y un login de prueba local.
+
+**Verificado:** `npx tsc --noEmit` → OK. `npx eslint src` → OK. `npm run build` → OK. En el navegador **sin verificar**, porque no tengo la sesión del admin en local.
+
+**Resuelto en el camino:** `bash` dentro de `launch.json` resolvía al bash de WSL (`execvpe(/bin/bash) failed`). Se usó un lanzador en `node` y después se descartó.
+
+**Sigue:** verificar el deploy y que la pantalla ya no llame a `/api/health` cada minuto (pestaña Network). Emitir la gift card de Vera.
+
+---
 
 ### 2026-10-05 — Medio de pago en el formulario y el listado
 

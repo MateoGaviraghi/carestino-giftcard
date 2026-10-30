@@ -18,6 +18,14 @@ Este archivo arranca el 2026-10-05. Las decisiones anteriores (migración a Neon
 - **Se mostró en:** la tabla del generador (`/`), como columna "Pago" en desktop y al lado de la fecha en mobile. **No** en `/admin` (ver OQ-001).
 - **Se reabre si:** se piden más medios (ej. Mercado Pago, débito/crédito por separado) o se quiere el dato en `/admin`.
 
+### D-002 — Neon pago y nada que mantenga la base despierta (2026-10-30)
+- **Qué pasó:** el 25/10 el proyecto Neon `carestino-giftcard` (`jolly-smoke-80453382`, plan `free_v3`) agotó las 100 CU-horas del mes: 397.312 s de cómputo y 1.589.215 s activo, unas 441 h prendido a 0,25 CU. Neon cortó toda conexión con `Your account or project has exceeded the quota`. La app mostraba "No hay gift cards" y no dejaba emitir; el local no pudo emitir una gift card para una clienta el 30/10.
+- **Causa:** `setInterval(checkDb, 60_000)` en `src/app/page.tsx`. Con la pantalla del generador abierta todo el día, la base nunca se suspendía. Entró con el health check y nadie la cruzó contra el límite del plan gratis.
+- **Decisión:** Mateo pagó Neon el 30/10 (la org pasó a plan pago; el proyecto queda en 0,25 CU fijo). Se sacó el polling: `checkDb` corre al montar la pantalla y al volver a la pestaña, como mucho una vez cada 5 min. Si `/api/giftcards` falla, el historial dice "No se pudo cargar el historial" en vez de "No hay gift cards".
+- **Regla permanente:** nada en el cliente ni en un cron puede consultar la base en bucle. Con plan pago, cada hora despierta se cobra.
+- **Descartado:** esperar al reset del 1/11 (el local no podía emitir), y una base temporal mientras tanto (se creó `carestino-giftcard-temporal` y se borró sin usarla al pagar Mateo).
+- **Se reabre si:** el costo mensual de Neon sube sin aumento de uso real; revisar primero qué está despertando la base.
+
 ---
 
 ## Gotchas
@@ -34,6 +42,11 @@ Este archivo arranca el 2026-10-05. Las decisiones anteriores (migración a Neon
 
 ### G-003 — El puerto 3000 puede estar ocupado por otro proyecto
 - `.claude/launch.json` (sin trackear) tiene `"autoPort": true` desde 2026-10-05. Si el 3000 está tomado, el preview levanta en otro puerto (ese día, `49734`). La cookie de sesión es por puerto: hay que loguearse de nuevo en el puerto que se asignó.
+
+### G-004 — Base caída se veía como "No hay gift cards"
+- **Síntoma:** con Neon bloqueado, el historial mostraba "No hay gift cards" y los contadores en 0, como si la base estuviera vacía.
+- **Causa:** `fetchCards` solo hacía `if (json.success) setCards(...)` y no registraba el fallo. Arreglado el 2026-10-30 con el estado `cardsError`.
+- **Diagnóstico rápido si vuelve a pasar:** conectar con la `DATABASE_URL` de `.env.local` (ver G-001). Si Neon responde `exceeded the quota`, es el límite del plan, no la app; el consumo se ve con `describe_project` del MCP de Neon (`compute_time_seconds`, `active_time_seconds`).
 
 ---
 

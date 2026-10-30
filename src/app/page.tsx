@@ -151,6 +151,7 @@ export default function Home() {
   // Admin state
   const [cards, setCards] = useState<AdminCard[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
+  const [cardsError, setCardsError] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -159,8 +160,16 @@ export default function Home() {
     setCardsLoading(true);
     try {
       const res = await fetch("/api/giftcards", { cache: "no-store" });
-      const json = await res.json();
-      if (json.success) setCards(json.data);
+      const json = await res.json().catch(() => null);
+      if (json?.success) {
+        setCards(json.data);
+        setCardsError(false);
+      } else {
+        // Sin esto, una base caida se veia como "No hay gift cards".
+        setCardsError(true);
+      }
+    } catch {
+      setCardsError(true);
     } finally {
       setCardsLoading(false);
     }
@@ -312,13 +321,23 @@ export default function Home() {
     fetchCards();
   }, [fetchCards]);
 
-  // Vigila el estado de la base y recupera lo que haya quedado sin guardar.
+  // Chequea la base al abrir y al volver a la pestaña, nunca en bucle. Un
+  // setInterval de 60s mantenia Neon despierto todo el dia con la pestaña
+  // abierta: en octubre 2026 agoto las horas del plan gratis y bloqueo la base.
   useEffect(() => {
     setPending(readPending());
     checkDb();
-    const id = setInterval(checkDb, 60_000);
-    return () => clearInterval(id);
-  }, [checkDb]);
+    let lastCheck = Date.now();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastCheck < 5 * 60_000) return;
+      lastCheck = Date.now();
+      checkDb();
+      fetchCards();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [checkDb, fetchCards]);
 
   const pdfCardRef = useRef<HTMLDivElement>(null);
 
@@ -1033,6 +1052,11 @@ export default function Home() {
               {cardsLoading ? (
                 <div className="py-16 text-center text-gray-400 font-medium">
                   Cargando...
+                </div>
+              ) : cardsError ? (
+                <div className="py-16 text-center font-medium text-amber-700">
+                  No se pudo cargar el historial: la base de datos no
+                  respondió. Probá con Actualizar.
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="py-16 text-center text-gray-400 font-medium">
